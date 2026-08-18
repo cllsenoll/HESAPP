@@ -10,7 +10,6 @@ from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
-from reportlab.pdfgen import canvas
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
@@ -250,6 +249,22 @@ def parse_turkish_float(val):
     except:
         return 0.0
 
+def tr_fix(text):
+    """PDF içindeki metinlerde Türkçe karakter bozulmasını engeller."""
+    if not text:
+        return ""
+    mapping = {
+        'İ': 'I', 'ı': 'i',
+        'Ş': 'S', 'ş': 's',
+        'Ğ': 'G', 'ğ': 'g',
+        'Ü': 'U', 'ü': 'u',
+        'Ö': 'O', 'ö': 'o',
+        'Ç': 'C', 'ç': 'c'
+    }
+    for k, v in mapping.items():
+        text = str(text).replace(k, v)
+    return text
+
 # ==========================================
 # GÜÇLÜ DOSYA OKUMA MOTORU
 # ==========================================
@@ -352,8 +367,6 @@ def process_personnel_account_data(df):
     ]
 
     final_rows = []
-    processed_clean_names = set()
-
     for fixed_name in priority_list:
         clean_fixed = clean_string(fixed_name)
         matched_row = None
@@ -374,7 +387,6 @@ def process_personnel_account_data(df):
                 "Nakit Ödeme Tutarı Topl": float(matched_row["Nakit Ödeme Tutarı Topl"]),
                 "Banka/ATM": 0.0,
             })
-            processed_clean_names.add(matched_row["Clean_Name"])
         else:
             final_rows.append({
                 "Personel Adı": fixed_name,
@@ -480,8 +492,8 @@ def generate_f4_pdf(personel_name, df_personel):
         'TitleStyle',
         parent=styles['Heading1'],
         fontName='Helvetica-Bold',
-        fontSize=16,
-        leading=20,
+        fontSize=15,
+        leading=18,
         textColor=colors.HexColor("#0B192C"),
         alignment=1
     )
@@ -525,16 +537,16 @@ def generate_f4_pdf(personel_name, df_personel):
 
     elements = []
 
-    elements.append(Paragraph("YURTIÇI KARGO GÖRÜKLE ACENTESI", title_style))
-    elements.append(Paragraph(f"F4 ÖDEME VE TAHSİLAT LİSTESİ - <b>{personel_name}</b>", subtitle_style))
+    elements.append(Paragraph(tr_fix("YURTICI KARGO GORUKLE ACENTESI"), title_style))
+    elements.append(Paragraph(tr_fix(f"F4 ODEME VE TAHSILAT LISTESI - <b>{personel_name}</b>"), subtitle_style))
     elements.append(Spacer(1, 15))
 
     table_data = [
         [
-            Paragraph("S.No", table_header_style),
-            Paragraph("Müşteri Adı", table_header_style),
-            Paragraph("Açıklama", table_header_style),
-            Paragraph("Fatura Borcu (TL)", table_header_style)
+            Paragraph(tr_fix("S.No"), table_header_style),
+            Paragraph(tr_fix("Musteri Adi"), table_header_style),
+            Paragraph(tr_fix("Aciklama"), table_header_style),
+            Paragraph(tr_fix("Fatura Borcu (TL)"), table_header_style)
         ]
     ]
 
@@ -543,9 +555,9 @@ def generate_f4_pdf(personel_name, df_personel):
         borc = float(row["Fatura Borcu"])
         total_borc += borc
         table_data.append([
-            Paragraph(str(idx), table_body_style),
-            Paragraph(str(row["Müşteri Adı"]), table_body_style),
-            Paragraph(str(row["Açıklama"]) if row["Açıklama"] else "-", table_body_style),
+            Paragraph(tr_fix(str(idx)), table_body_style),
+            Paragraph(tr_fix(str(row["Müşteri Adı"])), table_body_style),
+            Paragraph(tr_fix(str(row["Açıklama"])) if row["Açıklama"] else "-", table_body_style),
             Paragraph(f"{borc:,.2f} TL", table_body_num_style)
         ])
 
@@ -575,8 +587,8 @@ def generate_f4_pdf(personel_name, df_personel):
     elements.append(Spacer(1, 25))
 
     imza_data = [
-        [Paragraph("<b>Teslim Eden</b>", table_body_style), Paragraph("<b>Teslim Alan (Personel)</b>", table_body_style)],
-        [Paragraph("<br/><br/>İmza: ........................", table_body_style), Paragraph(f"<br/><br/><b>{personel_name}</b><br/>İmza: ........................", table_body_style)]
+        [Paragraph(tr_fix("<b>Teslim Eden</b>"), table_body_style), Paragraph(tr_fix("<b>Teslim Alan (Personel)</b>"), table_body_style)],
+        [Paragraph(tr_fix("<br/><br/>Imza: ........................"), table_body_style), Paragraph(tr_fix(f"<br/><br/><b>{personel_name}</b><br/>Imza: ........................"), table_body_style)]
     ]
     imza_table = Table(imza_data, colWidths=[250, 250])
     imza_table.setStyle(TableStyle([
@@ -632,8 +644,7 @@ if uploaded_file is not None:
         
         cols_str = " ".join([str(c).upper() for c in raw_df.columns])
         if "AT ZIMMET" in cols_str or "TESLIM EDEN PERSONEL" in cols_str or "KARGO TESLIMAT KANALI" in cols_str:
-            perf_res, _ = process_excel_data(raw_df)
-            st.session_state.perf_df = perf_res
+            pass
             
         elif "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
             processed_acc = process_personnel_account_data(raw_df)
@@ -668,46 +679,13 @@ if st.session_state.active_tab == "Ana Panel":
         c4.metric("🎯 Genel Başarı Oranı", f"%{avg_rate}")
         
         st.markdown("---")
-        
-        col_left, col_right = st.columns(2)
-        
-        with col_left:
-            st.subheader("📊 Kurye Başarı Oranları (%)")
-            fig_bar = px.bar(
-                perf_df, 
-                x="Personel", 
-                y="Başarı Oranı", 
-                color="Başarı Oranı",
-                color_continuous_scale="RdYlGn",
-                text="Başarı Oranı"
-            )
-            fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
-            st.plotly_chart(fig_bar, use_container_width=True)
-            
-        with col_right:
-            st.subheader("📲 Teslimat Kanalları Dağılımı")
-            channel_totals = {
-                "SMS": perf_df["SMS"].sum(),
-                "İmza": perf_df["İmza"].sum(),
-                "KS-PE": perf_df["KS-PE"].sum()
-            }
-            fig_pie = px.pie(
-                names=list(channel_totals.keys()),
-                values=list(channel_totals.values()),
-                hole=0.5,
-                color_discrete_sequence=['#0D6EFD', '#F57C00', '#2E7D32']
-            )
-            fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="white")
-            st.plotly_chart(fig_pie, use_container_width=True)
-            
         st.subheader("📋 Genel Performans Tablosu")
         st.dataframe(perf_df, use_container_width=True)
-        
     else:
         st.info("💡 Sol menüden **AT ZİMMET İZLEME** dosyanızı yükleyerek ana paneli görüntüleyebilirsiniz.")
 
 # ==========================================
-# TAB 1: HESAP
+# TAB 2: HESAP
 # ==========================================
 elif st.session_state.active_tab == "HESAP":
     account_df = st.session_state.account_df
@@ -800,7 +778,7 @@ elif st.session_state.active_tab == "HESAP":
         st.info("ℹ️ Lütfen sol panelden personel hesap raporunu yükleyin.")
 
 # ==========================================
-# TAB 2: F4 ÖDEME LİSTESİ
+# TAB 3: F4 ÖDEME LİSTESİ
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.markdown("### 📋 F4 Ödeme ve Kişisel Tahsilat Listesi")
@@ -829,32 +807,44 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         st.session_state.editable_f4_df = edited_df
 
         st.markdown("---")
-        st.markdown("### 🖨️ Personel Bazlı F4 Yazdırma / PDF İndirme")
+        st.markdown("### 🖨️ Personel Bazlı F4 Önizleme & PDF İndirme")
 
         personel_listesi_f4 = [p for p in edited_df["Personel"].unique() if p != "ATANMAMIŞ"]
         
         if personel_listesi_f4:
-            pdf_col1, pdf_col2 = st.columns([3, 2])
+            pdf_col1, pdf_col2 = st.columns([2.5, 2])
             with pdf_col1:
                 secilen_personel = st.selectbox("📄 PDF Yazdırılacak Personeli Seçin:", options=personel_listesi_f4)
             
-            with pdf_col2:
-                st.markdown("<div style='padding-top: 28px;'></div>", unsafe_allow_html=True)
-                if secilen_personel:
-                    personel_f4_df = edited_df[edited_df["Personel"] == secilen_personel]
+            if secilen_personel:
+                personel_f4_df = edited_df[edited_df["Personel"] == secilen_personel].reset_index(drop=True)
+                personel_f4_df.index = range(1, len(personel_f4_df) + 1)
+                
+                if not personel_f4_df.empty:
+                    toplam_borc = personel_f4_df["Fatura Borcu"].sum()
                     
-                    if not personel_f4_df.empty:
-                        pdf_bytes = generate_f4_pdf(secilen_personel, personel_f4_df)
-                        
-                        st.download_button(
-                            label=f"🖨️ {secilen_personel} - F4 PDF İndir",
-                            data=pdf_bytes,
-                            file_name=f"F4_Odeme_Listesi_{secilen_personel.replace(' ', '_')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                    else:
-                        st.warning("Seçilen personele ait kayıt bulunamadı.")
+                    st.markdown(f"#### 🔍 **{secilen_personel}** - Canlı Liste Önizlemesi ({len(personel_f4_df)} Kayıt / Toplam: **{toplam_borc:,.2f} ₺**)")
+                    st.dataframe(
+                        personel_f4_df[["Müşteri Adı", "Açıklama", "Fatura Borcu"]],
+                        column_config={
+                            "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı"),
+                            "Açıklama": st.column_config.TextColumn("Açıklama"),
+                            "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺")
+                        },
+                        use_container_width=True
+                    )
+                    
+                    pdf_bytes = generate_f4_pdf(secilen_personel, personel_f4_df)
+                    
+                    st.download_button(
+                        label=f"🖨️ {secilen_personel} - F4 PDF İndir",
+                        data=pdf_bytes,
+                        file_name=f"F4_Odeme_Listesi_{secilen_personel.replace(' ', '_')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                else:
+                    st.warning("Seçilen personele ait kayıt bulunamadı.")
         else:
             st.info("💡 PDF yazdırmak için sorumlu personeli atanmış en az bir kayıt bulunmalıdır.")
             
