@@ -13,7 +13,7 @@ from reportlab.lib import colors
 
 # 1. SAYFA YAPILANDIRMASI
 st.set_page_config(
-    page_title="Görükle Acente - Hesap & F4 Paneli",
+    page_title="Görükle Acente - F4/HESAP",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -34,8 +34,6 @@ if 'f4_df' not in st.session_state:
     st.session_state.f4_df = None
 if 'editable_f4_df' not in st.session_state:
     st.session_state.editable_f4_df = None
-if 'perf_df' not in st.session_state:
-    st.session_state.perf_df = None
 
 KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "(Şube Şefi)"
@@ -607,8 +605,8 @@ def generate_f4_pdf(personel_name, df_personel):
 with st.sidebar:
     st.markdown("""
     <div class="notranslate" style="text-align: center; padding-bottom: 10px;">
-        <h2 style="margin: 0; color: #FFFFFF;">Yurtiçi Kargo</h2>
-        <h4 style="margin: 0; color: #F57C00;">Görükle Acente KOYS</h4>
+        <h2 style="margin: 0; color: #FFFFFF;">F4 / HESAP</h2>
+        <h4 style="margin: 0; color: #F57C00;">Görükle Acente</h4>
     </div>
     """, unsafe_allow_html=True)
     
@@ -625,10 +623,6 @@ with st.sidebar:
     
     st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
     
-    if st.button("📊 Ana Panel"):
-        st.session_state.active_tab = "Ana Panel"
-    if st.button("🏃‍♂️ Kurye Performans"):
-        st.session_state.active_tab = "Kurye Performans"
     if st.button("💰 HESAP"):
         st.session_state.active_tab = "HESAP"
     if st.button("📋 F4 ÖDEME LİSTESİ"):
@@ -643,10 +637,8 @@ if uploaded_file is not None:
         st.session_state.raw_df = raw_df
         
         cols_str = " ".join([str(c).upper() for c in raw_df.columns])
-        if "AT ZIMMET" in cols_str or "TESLIM EDEN PERSONEL" in cols_str or "KARGO TESLIMAT KANALI" in cols_str:
-            pass
-            
-        elif "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
+        
+        if "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
             processed_acc = process_personnel_account_data(raw_df)
             st.session_state.account_df = processed_acc
             st.session_state.hesap_df = processed_acc.copy()
@@ -660,34 +652,9 @@ if uploaded_file is not None:
         st.error(f"❌ Dosya Okuma/İşleme Hatası: {e}")
 
 # ==========================================
-# TAB 1: ANA PANEL
+# TAB: HESAP
 # ==========================================
-if st.session_state.active_tab == "Ana Panel":
-    st.title("📊 Görükle Acente - Genel Performans Özeti")
-    
-    perf_df = st.session_state.perf_df
-    if perf_df is not None and not perf_df.empty:
-        total_zimmet = perf_df["Zimmet"].sum()
-        total_teslim = perf_df["Teslim Edilen"].sum()
-        total_devir = perf_df["Teslim Edilemeyen"].sum()
-        avg_rate = round((total_teslim / total_zimmet) * 100, 1) if total_zimmet > 0 else 0
-        
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("📦 Toplam Zimmet", f"{total_zimmet:,}")
-        c2.metric("✅ Teslim Edilen", f"{total_teslim:,}")
-        c3.metric("🚨 Devir / Teslim Edilemeyen", f"{total_devir:,}")
-        c4.metric("🎯 Genel Başarı Oranı", f"%{avg_rate}")
-        
-        st.markdown("---")
-        st.subheader("📋 Genel Performans Tablosu")
-        st.dataframe(perf_df, use_container_width=True)
-    else:
-        st.info("💡 Sol menüden **AT ZİMMET İZLEME** dosyanızı yükleyerek ana paneli görüntüleyebilirsiniz.")
-
-# ==========================================
-# TAB 2: HESAP
-# ==========================================
-elif st.session_state.active_tab == "HESAP":
+if st.session_state.active_tab == "HESAP":
     account_df = st.session_state.account_df
 
     if account_df is not None:
@@ -736,117 +703,3 @@ elif st.session_state.active_tab == "HESAP":
             
             st.markdown(f"<div style='text-align: center; padding-top: 8px; font-weight: bold; font-size: 15px; color: {renk_kodu};'>{durum_metni}</div>", unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
-
-        updated_rows = []
-        for idx, row in current_df.iterrows():
-            p_name = row["Personel Adı"]
-            ft_val = float(row["Nakit Ft Tutarı Topl"])
-            odeme_val = float(row["Nakit Ödeme Tutarı Topl"])
-            current_banka = float(row["Banka/ATM"])
-            current_islem = bool(row["İşlem"])
-
-            foto_url = get_github_avatar(p_name)
-            fallback_url = f"https://api.dicebear.com/7.x/avataaars/svg?seed={p_name.replace(' ', '')}"
-
-            bg_style = "background: rgba(46, 125, 50, 0.35); border: 1px solid #2E7D32;" if current_islem else "background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border: 1px solid #FFA200; box-shadow: 0 4px 8px rgba(255, 123, 0, 0.2);"
-            
-            st.markdown(f"""
-            <div style="{bg_style} border-radius: 12px; padding: 12px 15px; margin-bottom: 10px;">
-                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                    <img src="{foto_url}" width="40" height="40" style="border-radius: 50%; object-fit: cover; border: 2px solid #00B4D8; background: #fff;" onerror="this.onerror=null; this.src='{fallback_url}';" />
-                    <span style="font-weight: bold; font-size: 16px; color: #FFFFFF;">{p_name}</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            c1, c2, c3, c4, c5 = st.columns([2, 2, 2, 2, 1.5])
-            with c1: st.metric("Nakit Ft Topl", f"{ft_val:,.2f} ₺")
-            with c2: st.metric("Nakit Ödeme Topl", f"{odeme_val:,.2f} ₺")
-            with c3: new_banka = st.number_input("Banka/ATM", value=current_banka, step=10.0, format="%.2f", key=f"banka_{idx}", label_visibility="collapsed")
-            with c4: 
-                hesap_sonuc = ft_val + odeme_val - new_banka
-                st.metric("Hesap", f"{hesap_sonuc:,.2f} ₺")
-            with c5: new_islem = st.checkbox("Tamam", value=current_islem, key=f"islem_{idx}")
-
-            updated_rows.append({
-                "Personel Adı": p_name, "Nakit Ft Tutarı Topl": ft_val, 
-                "Nakit Ödeme Tutarı Topl": odeme_val, "Banka/ATM": new_banka, 
-                "Hesap": hesap_sonuc, "İşlem": new_islem
-            })
-        st.session_state.hesap_df = pd.DataFrame(updated_rows)
-    else:
-        st.info("ℹ️ Lütfen sol panelden personel hesap raporunu yükleyin.")
-
-# ==========================================
-# TAB 3: F4 ÖDEME LİSTESİ
-# ==========================================
-elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.markdown("### 📋 F4 Ödeme ve Kişisel Tahsilat Listesi")
-    st.caption("Tablo üzerinden 'Sorumlu Personel' sütununa tıklayarak eksik veya atanmamış kişisel isimlerini manuel olarak yazabilir veya değiştirebilirsiniz.")
-    
-    f4_df = st.session_state.get('f4_df', None)
-    
-    if f4_df is not None and not f4_df.empty:
-        if st.session_state.editable_f4_df is None:
-            st.session_state.editable_f4_df = f4_df.copy()
-
-        tum_personel_secenekleri = sorted(list(set(PERSONEL_LISTESI + list(st.session_state.editable_f4_df["Personel"].unique()))))
-        
-        edited_df = st.data_editor(
-            st.session_state.editable_f4_df,
-            column_config={
-                "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı", disabled=True),
-                "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺", disabled=True),
-                "Açıklama": st.column_config.TextColumn("Açıklama"),
-                "Personel": st.column_config.SelectboxColumn("Sorumlu Personel", options=tum_personel_secenekleri, required=True)
-            },
-            use_container_width=True,
-            num_rows="dynamic",
-            key="f4_editor"
-        )
-        st.session_state.editable_f4_df = edited_df
-
-        st.markdown("---")
-        st.markdown("### 🖨️ Personel Bazlı F4 Önizleme & PDF İndirme")
-
-        personel_listesi_f4 = [p for p in edited_df["Personel"].unique() if p != "ATANMAMIŞ"]
-        
-        if personel_listesi_f4:
-            pdf_col1, pdf_col2 = st.columns([2.5, 2])
-            with pdf_col1:
-                secilen_personel = st.selectbox("📄 PDF Yazdırılacak Personeli Seçin:", options=personel_listesi_f4)
-            
-            if secilen_personel:
-                personel_f4_df = edited_df[edited_df["Personel"] == secilen_personel].reset_index(drop=True)
-                personel_f4_df.index = range(1, len(personel_f4_df) + 1)
-                
-                if not personel_f4_df.empty:
-                    toplam_borc = personel_f4_df["Fatura Borcu"].sum()
-                    
-                    st.markdown(f"#### 🔍 **{secilen_personel}** - Canlı Liste Önizlemesi ({len(personel_f4_df)} Kayıt / Toplam: **{toplam_borc:,.2f} ₺**)")
-                    st.dataframe(
-                        personel_f4_df[["Müşteri Adı", "Açıklama", "Fatura Borcu"]],
-                        column_config={
-                            "Müşteri Adı": st.column_config.TextColumn("Müşteri Adı"),
-                            "Açıklama": st.column_config.TextColumn("Açıklama"),
-                            "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu", format="%.2f ₺")
-                        },
-                        use_container_width=True
-                    )
-                    
-                    pdf_bytes = generate_f4_pdf(secilen_personel, personel_f4_df)
-                    
-                    st.download_button(
-                        label=f"🖨️ {secilen_personel} - F4 PDF İndir",
-                        data=pdf_bytes,
-                        file_name=f"F4_Odeme_Listesi_{secilen_personel.replace(' ', '_')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True
-                    )
-                else:
-                    st.warning("Seçilen personele ait kayıt bulunamadı.")
-        else:
-            st.info("💡 PDF yazdırmak için sorumlu personeli atanmış en az bir kayıt bulunmalıdır.")
-            
-    else:
-        st.info("ℹ️ Lütfen sol menüden F4 Ödeme Listesi içeren dosyanızı yükleyin.")
