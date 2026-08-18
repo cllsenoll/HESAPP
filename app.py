@@ -302,7 +302,7 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi.")
 
 # ==========================================
-# PERSONEL HESAP ALIMI EKRANI PARSER
+# PERSONEL HESAP ALIMI EKRANI PARSER (GÜNCELLENDİ)
 # ==========================================
 def process_personnel_account_data(df):
     header_idx = 0
@@ -342,14 +342,14 @@ def process_personnel_account_data(df):
         raw_p_name = str(row[p_col]).strip() if p_col else ""
         c_p_name = clean_string(raw_p_name)
         
-        if not c_p_name or c_p_name in ["NAN", "NONE", "TOTAL", "TOPLAM", "GENELTOPLAM"]:
+        if not raw_p_name or raw_p_name.upper() in ["NAN", "NONE", "-", "TOTAL", "TOPLAM", "GENELTOPLAM"]:
             continue
             
         ft_val = parse_turkish_float(row[ft_col]) if ft_col else 0.0
         odeme_val = parse_turkish_float(row[odeme_col]) if odeme_col else 0.0
 
         parsed_rows.append({
-            "Raw_Name": raw_p_name,
+            "Personel Adı": raw_p_name,
             "Clean_Name": c_p_name,
             "Nakit Ft Tutarı Topl": ft_val,
             "Nakit Ödeme Tutarı Topl": odeme_val,
@@ -358,47 +358,30 @@ def process_personnel_account_data(df):
 
     temp_df = pd.DataFrame(parsed_rows)
 
-    priority_list = [
-        "HATİCE KÜBRA IŞIK", "ALATTİN CEBECİ", "BURCU DÜREN",
-        "AHMET BERKAN ÖKSÜZ", "HASAN SAĞLAM", "MEHMET KAYMAZ",
-        "SUAT ARI", "SERGEN GÖRÜROĞLU", "CELAL ŞENOL"
-    ]
-
+    # Yüklenen excel dosyasında adı geçen her personeli görmek ve yalnızca adı geçenleri listelemek için:
     final_rows = []
-    for fixed_name in priority_list:
-        clean_fixed = clean_string(fixed_name)
-        matched_row = None
-        
-        if not temp_df.empty:
-            exact_match = temp_df[temp_df["Clean_Name"] == clean_fixed]
-            if not exact_match.empty:
-                matched_row = exact_match.iloc[0]
-            else:
-                contains_match = temp_df[temp_df["Clean_Name"].apply(lambda x: clean_fixed in x or x in clean_fixed)]
-                if not contains_match.empty:
-                    matched_row = contains_match.iloc[0]
-
-        if matched_row is not None:
-            final_rows.append({
-                "Personel Adı": fixed_name,
-                "Nakit Ft Tutarı Topl": float(matched_row["Nakit Ft Tutarı Topl"]),
-                "Nakit Ödeme Tutarı Topl": float(matched_row["Nakit Ödeme Tutarı Topl"]),
-                "Banka/ATM": 0.0,
-            })
-        else:
-            final_rows.append({
-                "Personel Adı": fixed_name,
-                "Nakit Ft Tutarı Topl": 0.0,
-                "Nakit Ödeme Tutarı Topl": 0.0,
-                "Banka/ATM": 0.0,
-            })
+    seen_names = set()
+    
+    if not temp_df.empty:
+        for _, row in temp_df.iterrows():
+            p_name = row["Personel Adı"]
+            c_name = row["Clean_Name"]
+            if c_name not in seen_names:
+                seen_names.add(c_name)
+                final_rows.append({
+                    "Personel Adı": p_name,
+                    "Nakit Ft Tutarı Topl": float(row["Nakit Ft Tutarı Topl"]),
+                    "Nakit Ödeme Tutarı Topl": float(row["Nakit Ödeme Tutarı Topl"]),
+                    "Banka/ATM": 0.0,
+                })
 
     result_df = pd.DataFrame(final_rows)
-    result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
-    result_df["İşlem"] = False
-    result_df.reset_index(drop=True, inplace=True)
-    result_df.index = range(1, len(result_df) + 1)
-
+    if not result_df.empty:
+        result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
+        result_df["İşlem"] = False
+        result_df.reset_index(drop=True, inplace=True)
+        result_df.index = range(1, len(result_df) + 1)
+    
     return result_df[["Personel Adı", "Nakit Ft Tutarı Topl", "Nakit Ödeme Tutarı Topl", "Banka/ATM", "Hesap", "İşlem"]]
 
 # ==========================================
@@ -615,7 +598,7 @@ with st.sidebar:
     st.markdown(f"""
     <div class="notranslate" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
         <small style="color: #F57C00;">Aktif Kullanıcı:</small><br>
-        <strong>{KULLANICI_ISIM}</strong> ({KULLANICI_GOREV})
+        <strong>{KULLANICI_ISIM}</strong> {KULLANICI_GOREV}
     </div>
     """, unsafe_allow_html=True)
 
@@ -727,100 +710,98 @@ if st.session_state.active_tab == "HESAP":
                 st.markdown(f"""
                 <div style="padding-top: 5px;">
                     <h4 style="margin: 0; color: #FFFFFF; font-size: 16px;">{p_adi}</h4>
-                    <p style="margin: 4px 0 0 0; font-size: 13px; color: #A0AEC0;">
-                        FT Tutar: <strong style="color: #48CAE4;">{ft_val:,.2f} ₺</strong><br>
-                        Ödeme Tutar: <strong style="color: #48CAE4;">{odeme_val:,.2f} ₺</strong>
-                    </p>
+                    <p style="margin: 3px 0 0 0; color: #90E0EF; font-size: 13px;">FT: <b>{ft_val:,.2f} ₺</b> | Ödeme: <b>{odeme_val:,.2f} ₺</b></p>
                 </div>
                 """, unsafe_allow_html=True)
                 
             with col_bank:
-                def update_banka_val(i=idx):
-                    st.session_state[f"banka_{i}"] = st.session_state[f"banka_input_{i}"]
-                
-                initial_b = float(row["Banka/ATM"])
-                if f"banka_{idx}" not in st.session_state:
-                    st.session_state[f"banka_{idx}"] = initial_b
-                    
-                st.number_input(
-                    "🏦 Banka / ATM",
-                    value=float(st.session_state[f"banka_{idx}"]),
+                default_b = float(row["Banka/ATM"])
+                banka_val = st.number_input(
+                    "Banka / ATM Yatırılan",
+                    value=default_b,
                     step=50.0,
                     format="%.2f",
-                    key=f"banka_input_{idx}",
-                    on_change=update_banka_val,
-                    args=(idx,)
+                    key=f"banka_{idx}",
+                    label_visibility="collapsed"
                 )
                 
+            hesap_sonuc = ft_val + odeme_val - banka_val
+            
             with col_res:
-                curr_b = float(st.session_state.get(f"banka_{idx}", initial_b))
-                satir_hesap = ft_val + odeme_val - curr_b
-                
                 st.markdown(f"""
-                <div style="background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; text-align: center; border: 1px solid rgba(255,255,255,0.1);">
-                    <small style="color: #A0AEC0;">Personel Hesap</small><br>
-                    <strong style="font-size: 16px; color: #FFB703;">{satir_hesap:,.2f} ₺</strong>
+                <div style="padding-top: 10px; text-align: right;">
+                    <span style="font-size: 12px; color: rgba(255,255,255,0.6);">Hesap Tutar:</span><br>
+                    <strong style="font-size: 18px; color: #FFB703;">{hesap_sonuc:,.2f} ₺</strong>
                 </div>
                 """, unsafe_allow_html=True)
                 
             with col_btn:
-                st.markdown("<div style='height: 5px;'></div>", unsafe_allow_html=True)
-                islem_durumu = st.checkbox("İşlem Yapıldı", value=bool(row["İşlem"]), key=f"islem_{idx}")
+                st.markdown("<div style='padding-top: 5px;'>", unsafe_allow_html=True)
+                islem_durumu = st.checkbox("İşlem Tamam", value=bool(row["İşlem"]), key=f"islem_{idx}")
+                st.markdown("</div>", unsafe_allow_html=True)
                 
             updated_rows.append({
                 "Personel Adı": p_adi,
                 "Nakit Ft Tutarı Topl": ft_val,
                 "Nakit Ödeme Tutarı Topl": odeme_val,
-                "Banka/ATM": curr_b,
-                "Hesap": ft_val + odeme_val - curr_b,
+                "Banka/ATM": banka_val,
+                "Hesap": hesap_sonuc,
                 "İşlem": islem_durumu
             })
             
         st.session_state.hesap_df = pd.DataFrame(updated_rows)
         st.session_state.hesap_df.index = range(1, len(st.session_state.hesap_df) + 1)
         
+        st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.2); margin: 25px 0;'>", unsafe_allow_html=True)
+        
+        col_down1, col_down2 = st.columns(2)
+        with col_down1:
+            if st.button("📥 Excel İndir"):
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    st.session_state.hesap_df.to_excel(writer, index=True, sheet_name='Personel Hesaplari')
+                processed_data = output.getvalue()
+                st.download_button(
+                    label="💾 Excel Dosyasını Kaydet",
+                    data=processed_data,
+                    file_name="personel_hesap_takip.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
     else:
-        st.info("💡 Sol menüden **Personel Hesap Raporu** yükleyerek hesap panelini aktif edebilirsiniz.")
+        st.info("💡 Sol menüden 'Personel Hesap Alımı' Excel veya CSV dosyanızı yükleyerek hesap panelini görüntüleyebilirsiniz.")
 
 # ==========================================
 # TAB 2: F4 ÖDEME LİSTESİ
 # ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.title("📋 F4 Ödeme ve Tahsilat Dağılım Paneli")
-    
+    st.title("📋 F4 Ödeme ve Tahsilat Listesi")
+
     f4_df = st.session_state.f4_df
     if f4_df is not None and not f4_df.empty:
-        selected_personel = st.selectbox("👤 Personel Seçiniz (PDF ve Liste İçin)", PERSONEL_LISTESI)
+        selected_personel_f4 = st.selectbox("🔍 Personel Seçin:", PERSONEL_LISTESI)
         
-        editable_df = st.session_state.editable_f4_df
+        filtered_f4 = f4_df[f4_df["Personel"] == selected_personel_f4].copy()
         
-        filtered_df = editable_df[editable_df["Personel"] == selected_personel].copy()
+        st.markdown(f"### 👤 {selected_personel_f4} - Müşteri Listesi ({len(filtered_f4)} Kayıt)")
         
-        st.subheader(f"📌 {selected_personel} - F4 Müşteri Listesi ({len(filtered_df)} Müşteri)")
-        
-        if not filtered_df.empty:
-            edited_sub_df = st.data_editor(
-                filtered_df,
+        if not filtered_f4.empty:
+            edited_f4 = st.data_editor(
+                filtered_f4[["Müşteri Adı", "Fatura Borcu", "Açıklama"]],
                 use_container_width=True,
-                num_rows="dynamic",
-                key=f"editor_{selected_personel}"
+                key=f"editor_{selected_personel_f4}"
             )
             
-            editable_df.update(edited_sub_df)
-            st.session_state.editable_f4_df = editable_df
+            total_borc_val = edited_f4["Fatura Borcu"].sum()
+            st.markdown(f"**Seçilen Personel Toplam Borç/Tahsilat:** `{total_borc_val:,.2f} TL`")
             
-            total_f4_borc = filtered_df["Fatura Borcu"].sum()
-            st.markdown(f"### 💰 Toplam Fatura Borcu: **{total_f4_borc:,.2f} TL**")
-            
-            pdf_data = generate_f4_pdf(selected_personel, filtered_df)
+            pdf_bytes = generate_f4_pdf(selected_personel_f4, edited_f4)
             st.download_button(
-                label=f"📥 {selected_personel} - F4 PDF İndir",
-                data=pdf_data,
-                file_name=f"F4_Odeme_Listesi_{selected_personel.replace(' ', '_')}.pdf",
+                label=f"📄 {selected_personel_f4} İçin PDF İndir",
+                data=pdf_bytes,
+                file_name=f"F4_Odeme_Listesi_{selected_personel_f4.replace(' ', '_')}.pdf",
                 mime="application/pdf"
             )
         else:
-            st.info(f"ℹ️ {selected_personel} için atanmış müşteri bulunamadı.")
-            
+            st.info(f"💡 {selected_personel_f4} üzerine atanmış herhangi bir müşteri kaydı bulunamadı.")
     else:
-        st.info("💡 Sol menüden **F4 / Müşteri Borç Listesi** yükleyerek F4 panelini aktif edebilirsiniz.")
+        st.info("💡 Sol menüden F4 / Müşteri Borç listesi dosyanızı yükleyin.")
