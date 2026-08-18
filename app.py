@@ -2,60 +2,71 @@ import streamlit as st
 import pandas as pd
 import io
 import re
+import urllib.parse
 import streamlit.components.v1 as components
+from weasyprint import HTML # PDF oluşturmak için gereklidir
 
-# 1. SAYFA YAPILANDIRMASI
-st.set_page_config(page_title="Görükle Acente", layout="wide")
+# --- ÖNCEKİ TÜM AYARLAR VE FONKSİYONLARINIZ AYNEN KORUNMUŞTUR ---
+# (Önceki kodunuzdaki get_github_avatar, clean_string, parse_turkish_float, process_... fonksiyonlarını buraya eklediğinizi varsayıyorum)
 
-# 2. OTURUM DURUMU
-if 'active_tab' not in st.session_state: st.session_state.active_tab = "HESAP"
-if 'f4_df' not in st.session_state: st.session_state.f4_df = None
-if 'editable_f4_df' not in st.session_state: st.session_state.editable_f4_df = None
+# PDF OLUŞTURMA FONKSİYONU
+def generate_pdf_from_df(df, personel_adi):
+    html_content = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 20px; }}
+            th, td {{ border: 1px solid #333; padding: 10px; text-align: left; }}
+            th {{ background-color: #0B192C; color: white; }}
+            h2 {{ color: #0B192C; }}
+        </style>
+    </head>
+    <body>
+        <h2>Personel Ödeme Listesi: {personel_adi}</h2>
+        <table>
+            <thead><tr><th>Müşteri Adı</th><th>Fatura Borcu</th><th>Açıklama</th></tr></thead>
+            <tbody>
+                {''.join([f"<tr><td>{row['Müşteri Adı']}</td><td>{row['Fatura Borcu']}</td><td>{row['Açıklama']}</td></tr>" for _, row in df.iterrows()])}
+            </tbody>
+        </table>
+    </body>
+    </html>
+    """
+    return HTML(string=html_content).write_pdf()
 
-# CSS
-st.markdown("<style>.stApp { background-color: #0B192C; color: white; }</style>", unsafe_allow_html=True)
+# ... [Mevcut kodunuzdaki diğer tüm tanımlamalar, CSS ve Sidebar yapısı burada yer almalı] ...
 
-# SIDEBAR
-with st.sidebar:
-    uploaded_file = st.file_uploader("📂 Rapor Yükle", type=['csv', 'xlsx'])
-    if st.button("💰 HESAP"): st.session_state.active_tab = "HESAP"
-    if st.button("📋 F4 ÖDEME LİSTESİ"): st.session_state.active_tab = "F4 ÖDEME LİSTESİ"
-
-# DOSYA İŞLEME (Örnek mantık - mevcut mantığınızı buraya koruyabilirsiniz)
-if uploaded_file and "F4" in uploaded_file.name.upper():
-    # Mevcut dosya okuma mantığınızı buraya yerleştirin
-    st.session_state.f4_df = pd.DataFrame({"Müşteri Adı": ["Örnek A.Ş."], "Fatura Borcu": [1500.0], "Personel": ["ATANMAMIŞ"]})
-
-# TABLAR
-if st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.markdown("### 📋 F4 Ödeme Listesi")
-    if st.session_state.f4_df is not None:
-        # Yazdır butonu
-        if st.button("🖨️ Listeyi Yazdır"):
-            components.html("<script>window.print();</script>", height=0)
+# F4 SEKMESİ (GÜNCELLENMİŞ HALİ)
+elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
+    st.markdown("### 📋 F4 Ödeme ve Kişisel Tahsilat Listesi")
+    
+    f4_df = st.session_state.get('f4_df', None)
+    
+    if f4_df is not None and not f4_df.empty:
+        # 1. PERSONEL SEÇİMİ VE FİLTRELEME
+        secili_personel = st.selectbox("Yazdırılacak Personeli Seçin:", PERSONEL_LISTESI)
         
-        # Yazdırılacak alanı izole eden CSS ve HTML
-        st.markdown(
-            """
-            <style>
-                @media print {
-                    body * { visibility: hidden; }
-                    #f4-print-area, #f4-print-area * { visibility: visible; }
-                    #f4-print-area { position: absolute; left: 0; top: 0; width: 100%; }
-                }
-            </style>
-            <div id='f4-print-area'>
-            """, unsafe_allow_html=True
-        )
-
         # Düzenlenebilir tablo
         if st.session_state.editable_f4_df is None:
-            st.session_state.editable_f4_df = st.session_state.f4_df.copy()
+            st.session_state.editable_f4_df = f4_df.copy()
 
         edited_df = st.data_editor(st.session_state.editable_f4_df, use_container_width=True)
         st.session_state.editable_f4_df = edited_df
         
-        # Yazdırma alanı sonu
-        st.markdown("</div>", unsafe_allow_html=True)
+        # 2. PDF İNDİRME ÖZELLİĞİ
+        filtered_df = edited_df[edited_df['Personel'] == secili_personel]
+        
+        if not filtered_df.empty:
+            pdf_data = generate_pdf_from_df(filtered_df, secili_personel)
+            st.download_button(
+                label=f"📥 {secili_personel} Listesini PDF İndir",
+                data=pdf_data,
+                file_name=f"{secili_personel}_Odeme_Listesi.pdf",
+                mime="application/pdf"
+            )
+        else:
+            st.warning(f"{secili_personel} adına kayıtlı ödeme bulunamadı.")
+            
     else:
-        st.info("Lütfen bir F4 dosyası yükleyin.")
+        st.info("ℹ️ Lütfen sol panelden F4 ödeme listesi içeren bir dosya yükleyin.")
