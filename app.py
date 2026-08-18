@@ -586,7 +586,7 @@ def generate_f4_pdf(personel_name, df_personel):
 
     imza_data = [
         [Paragraph(tr_fix("<b>Teslim Eden</b>"), table_body_style), Paragraph(tr_fix("<b>Teslim Alan (Personel)</b>"), table_body_style)],
-        [Paragraph(tr_fix("<br/><br/>Imza: ........................"), table_body_style), Paragraph(tr_fix(f"<br/><br/><b>{personel_name}</b><br/>Imza: ........................", table_body_style))]
+        [Paragraph(tr_fix("<br/><br/>Imza: ........................"), table_body_style), Paragraph(tr_fix(f"<br/><br/><b>{personel_name}</b><br/>Imza: ........................"), table_body_style)]
     ]
     imza_table = Table(imza_data, colWidths=[250, 250])
     imza_table.setStyle(TableStyle([
