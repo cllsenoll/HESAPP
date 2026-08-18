@@ -43,7 +43,6 @@ KULLANICI_GOREV = "(Şube Şefi)"
 def get_github_avatar(personel_adi):
     clean_name = str(personel_adi).strip()
     encoded_name = urllib.parse.quote(clean_name)
-    # raw.githubusercontent yerine jsDelivr CDN kullanarak resimlerin yüklenmeme (CORS/cache/mime) sorunlarını tamamen ortadan kaldırıyoruz
     return f"https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/{encoded_name}.png"
 
 # ==========================================
@@ -248,7 +247,6 @@ def parse_turkish_float(val):
         return 0.0
 
 def tr_fix(text):
-    """PDF içindeki metinlerde Türkçe karakter bozulmasını engeller."""
     if not text:
         return ""
     mapping = {
@@ -302,7 +300,7 @@ def smart_read_file(uploaded_file):
     raise Exception("Dosya yapısı çözümlenemedi.")
 
 # ==========================================
-# PERSONEL HESAP ALIMI EKRANI PARSER (GÜNCELLENDİ)
+# PERSONEL HESAP ALIMI EKRANI PARSER
 # ==========================================
 def process_personnel_account_data(df):
     header_idx = 0
@@ -451,6 +449,166 @@ def process_f4_payment_data(df):
         res_df.reset_index(drop=True, inplace=True)
         res_df.index = range(1, len(res_df) + 1)
     return res_df
+
+# ==========================================
+# HESAP ÖZETİ PDF OLUŞTURMA MOTORU
+# ==========================================
+def generate_hesap_pdf(df_hesap, kasa_miktari):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=30,
+        bottomMargin=30
+    )
+
+    styles = getSampleStyleSheet()
+    
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=15,
+        leading=18,
+        textColor=colors.HexColor("#0B192C"),
+        alignment=1
+    )
+
+    subtitle_style = ParagraphStyle(
+        'SubTitleStyle',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=11,
+        leading=14,
+        textColor=colors.HexColor("#1E3E62"),
+        alignment=1
+    )
+
+    table_header_style = ParagraphStyle(
+        'TableHeader',
+        fontName='Helvetica-Bold',
+        fontSize=9,
+        leading=11,
+        textColor=colors.white,
+        alignment=0
+    )
+
+    table_body_style = ParagraphStyle(
+        'TableBody',
+        fontName='Helvetica',
+        fontSize=9,
+        leading=11,
+        textColor=colors.HexColor("#111111"),
+        alignment=0
+    )
+
+    table_body_num_style = ParagraphStyle(
+        'TableBodyNum',
+        fontName='Helvetica',
+        fontSize=9,
+        leading=11,
+        textColor=colors.HexColor("#111111"),
+        alignment=2
+    )
+
+    elements = []
+
+    elements.append(Paragraph(tr_fix("YURTICI KARGO GORUKLE ACENTESI"), title_style))
+    elements.append(Paragraph(tr_fix("GUNLUK PERSONEL HESAP VE KASA TAKIP RAPORU"), subtitle_style))
+    elements.append(Spacer(1, 15))
+
+    table_data = [
+        [
+            Paragraph(tr_fix("S.No"), table_header_style),
+            Paragraph(tr_fix("Personel Adi"), table_header_style),
+            Paragraph(tr_fix("Nakit FT (TL)"), table_header_style),
+            Paragraph(tr_fix("Nakit Odeme (TL)"), table_header_style),
+            Paragraph(tr_fix("Banka/ATM (TL)"), table_header_style),
+            Paragraph(tr_fix("Hesap Tutar (TL)"), table_header_style)
+        ]
+    ]
+
+    total_ft = 0.0
+    total_odeme = 0.0
+    total_banka = 0.0
+    total_hesap = 0.0
+
+    for idx, (_, row) in enumerate(df_hesap.iterrows(), 1):
+        ft = float(row["Nakit Ft Tutarı Topl"])
+        odeme = float(row["Nakit Ödeme Tutarı Topl"])
+        banka = float(row["Banka/ATM"])
+        hesap = float(row["Hesap"])
+
+        total_ft += ft
+        total_odeme += odeme
+        total_banka += banka
+        total_hesap += hesap
+
+        table_data.append([
+            Paragraph(tr_fix(str(idx)), table_body_style),
+            Paragraph(tr_fix(str(row["Personel Adı"])), table_body_style),
+            Paragraph(f"{ft:,.2f}", table_body_num_style),
+            Paragraph(f"{odeme:,.2f}", table_body_num_style),
+            Paragraph(f"{banka:,.2f}", table_body_num_style),
+            Paragraph(f"{hesap:,.2f}", table_body_num_style)
+        ])
+
+    table_data.append([
+        Paragraph("<b>TOPLAM</b>", table_body_style),
+        Paragraph("", table_body_style),
+        Paragraph(f"<b>{total_ft:,.2f}</b>", table_body_num_style),
+        Paragraph(f"<b>{total_odeme:,.2f}</b>", table_body_num_style),
+        Paragraph(f"<b>{total_banka:,.2f}</b>", table_body_num_style),
+        Paragraph(f"<b>{total_hesap:,.2f}</b>", table_body_num_style)
+    ])
+
+    col_widths = [35, 175, 75, 75, 75, 80]
+    t = Table(table_data, colWidths=col_widths, repeatRows=1)
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1E3E62")),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
+        ('TOPPADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#CCCCCC")),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor("#F1F3F5")]),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#E9ECEF")),
+        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor("#1E3E62")),
+    ]))
+
+    elements.append(t)
+    elements.append(Spacer(1, 15))
+
+    fark = float(kasa_miktari) - total_hesap
+    if fark > 0:
+        durum_str = f"ACIK: {abs(fark):,.2f} TL"
+    elif fark < 0:
+        durum_str = f"FAZLA: {abs(fark):,.2f} TL"
+    else:
+        durum_str = "KASA TAM (0.00 TL)"
+
+    ozet_data = [
+        [Paragraph(tr_fix(f"<b>Kasa Miktari:</b> {float(kasa_miktari):,.2f} TL"), table_body_style),
+         Paragraph(tr_fix(f"<b>Toplam Hesap:</b> {total_hesap:,.2f} TL"), table_body_style),
+         Paragraph(tr_fix(f"<b>Durum:</b> {durum_str}"), table_body_style)]
+    ]
+    ozet_table = Table(ozet_data, colWidths=[175, 175, 165])
+    ozet_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#F8F9FA")),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#1E3E62")),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
+    ]))
+    elements.append(ozet_table)
+
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer.getvalue()
 
 # ==========================================
 # F4 PERSONEL LİSTESİ PDF OLUŞTURMA MOTORU
@@ -655,7 +813,6 @@ if st.session_state.active_tab == "HESAP":
         with top_col2:
             st.markdown("<div style='background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border: 2px solid #FFA200; border-radius: 12px; padding: 12px; margin-top: 5px; box-shadow: 0 4px 8px rgba(255, 123, 0, 0.3);'>", unsafe_allow_html=True)
             
-            # Kasa Hesaplama Genişletmesi (200, 100, 50, 20, 10, 5 TL Adetleri ile)
             with st.expander("💵 Küpür ile Kasa Hesapla (200, 100, 50, 20, 10, 5 TL)", expanded=False):
                 kc1, kc2, kc3 = st.columns(3)
                 with kc1:
@@ -772,19 +929,17 @@ if st.session_state.active_tab == "HESAP":
         
         st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.2); margin: 25px 0;'>", unsafe_allow_html=True)
         
+        # İstediğiniz gibi Excel İndir yerine PDF Yazdır butonu eklendi
         col_down1, col_down2 = st.columns(2)
         with col_down1:
-            if st.button("📥 Excel İndir"):
-                output = io.BytesIO()
-                with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                    st.session_state.hesap_df.to_excel(writer, index=True, sheet_name='Personel Hesaplari')
-                processed_data = output.getvalue()
-                st.download_button(
-                    label="💾 Excel Dosyasını Kaydet",
-                    data=processed_data,
-                    file_name="personel_hesap_takip.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
+            hesap_pdf_bytes = generate_hesap_pdf(st.session_state.hesap_df, float(st.session_state.ust_kasa_input if "ust_kasa_input" in st.session_state else st.session_state.kasa_miktari))
+            st.download_button(
+                label="📄 Hesap Özetini PDF Yazdır / İndir",
+                data=hesap_pdf_bytes,
+                file_name="personel_hesap_takip_raporu.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
     else:
         st.info("💡 Sol menüden 'Personel Hesap Alımı' Excel veya CSV dosyanızı yükleyerek hesap panelini görüntüleyebilirsiniz.")
 
@@ -812,7 +967,6 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             total_borc_val = edited_f4["Fatura Borcu"].sum()
             st.markdown(f"**Seçilen Personel Toplam Borç/Tahsilat:** `{total_borc_val:,.2f} TL`")
             
-            # İsteğinize istinaden PDF indirme butonunu listenin en alt kısmına yerleştirdik
             st.markdown("<br>", unsafe_allow_html=True)
             pdf_bytes = generate_f4_pdf(selected_personel_f4, edited_f4)
             st.download_button(
