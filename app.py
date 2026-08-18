@@ -3,7 +3,6 @@ import pandas as pd
 import io
 import re
 import urllib.parse
-import streamlit.components.v1 as components
 
 # PDF Oluşturma Kütüphanesi (ReportLab)
 from reportlab.lib.pagesizes import A4
@@ -44,7 +43,8 @@ KULLANICI_GOREV = "(Şube Şefi)"
 def get_github_avatar(personel_adi):
     clean_name = str(personel_adi).strip()
     encoded_name = urllib.parse.quote(clean_name)
-    return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{encoded_name}.png"
+    # raw.githubusercontent yerine jsDelivr CDN kullanarak resimlerin yüklenmeme (CORS/cache/mime) sorunlarını tamamen ortadan kaldırıyoruz
+    return f"https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/{encoded_name}.png"
 
 # ==========================================
 # MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
@@ -358,7 +358,6 @@ def process_personnel_account_data(df):
 
     temp_df = pd.DataFrame(parsed_rows)
 
-    # Yüklenen excel dosyasında adı geçen her personeli görmek ve yalnızca adı geçenleri listelemek için:
     final_rows = []
     seen_names = set()
     
@@ -650,15 +649,34 @@ if st.session_state.active_tab == "HESAP":
             curr_b = st.session_state.get(f"banka_{idx}", float(row["Banka/ATM"]))
             temp_hesap_toplam += (ft_val + odeme_val - curr_b)
 
-        def update_kasa():
-            st.session_state.kasa_miktari = st.session_state.ust_kasa_input
-
         top_col1, top_col2 = st.columns([2.5, 2.5])
         with top_col1:
             st.title("📋 Günlük Personel Hesap Takip Paneli")
         with top_col2:
             st.markdown("<div style='background: linear-gradient(135deg, #FF7B00 0%, #FF5400 100%); border: 2px solid #FFA200; border-radius: 12px; padding: 12px; margin-top: 5px; box-shadow: 0 4px 8px rgba(255, 123, 0, 0.3);'>", unsafe_allow_html=True)
             
+            # Kasa Hesaplama Genişletmesi (200, 100, 50, 20, 10, 5 TL Adetleri ile)
+            with st.expander("💵 Küpür ile Kasa Hesapla (200, 100, 50, 20, 10, 5 TL)", expanded=False):
+                kc1, kc2, kc3 = st.columns(3)
+                with kc1:
+                    adet_200 = st.number_input("200 TL Adet", min_value=0, value=0, step=1, key="kupur_200")
+                    adet_20 = st.number_input("20 TL Adet", min_value=0, value=0, step=1, key="kupur_20")
+                with kc2:
+                    adet_100 = st.number_input("100 TL Adet", min_value=0, value=0, step=1, key="kupur_100")
+                    adet_10 = st.number_input("10 TL Adet", min_value=0, value=0, step=1, key="kupur_10")
+                with kc3:
+                    adet_50 = st.number_input("50 TL Adet", min_value=0, value=0, step=1, key="kupur_50")
+                    adet_5 = st.number_input("5 TL Adet", min_value=0, value=0, step=1, key="kupur_5")
+                
+                hesaplanan_kupur_toplam = (adet_200 * 200) + (adet_100 * 100) + (adet_50 * 50) + (adet_20 * 20) + (adet_10 * 10) + (adet_5 * 5)
+                st.markdown(f"<div style='text-align: right; color: #FFF; font-weight: bold;'>Küpür Toplamı: {hesaplanan_kupur_toplam:,.2f} ₺</div>", unsafe_allow_html=True)
+                if st.button("Kasaya Aktar"):
+                    st.session_state.kasa_miktari = float(hesaplanan_kupur_toplam)
+                    st.rerun()
+
+            def update_kasa():
+                st.session_state.kasa_miktari = st.session_state.ust_kasa_input
+
             kasa_input_col1, kasa_input_col2 = st.columns(2)
             with kasa_input_col1:
                 st.number_input(
@@ -702,7 +720,7 @@ if st.session_state.active_tab == "HESAP":
             with col_avatar:
                 st.markdown(f"""
                 <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
-                    <img src="{avatar_url}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #00B4D8; box-shadow: 0 4px 6px rgba(0,0,0,0.3);" onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/ATANMAMIŞ.png';">
+                    <img src="{avatar_url}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover; border: 2px solid #00B4D8; box-shadow: 0 4px 6px rgba(0,0,0,0.3);" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/ATANMAMI%C5%9E.png';">
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -794,12 +812,15 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
             total_borc_val = edited_f4["Fatura Borcu"].sum()
             st.markdown(f"**Seçilen Personel Toplam Borç/Tahsilat:** `{total_borc_val:,.2f} TL`")
             
+            # İsteğinize istinaden PDF indirme butonunu listenin en alt kısmına yerleştirdik
+            st.markdown("<br>", unsafe_allow_html=True)
             pdf_bytes = generate_f4_pdf(selected_personel_f4, edited_f4)
             st.download_button(
                 label=f"📄 {selected_personel_f4} İçin PDF İndir",
                 data=pdf_bytes,
                 file_name=f"F4_Odeme_Listesi_{selected_personel_f4.replace(' ', '_')}.pdf",
-                mime="application/pdf"
+                mime="application/pdf",
+                use_container_width=True
             )
         else:
             st.info(f"💡 {selected_personel_f4} üzerine atanmış herhangi bir müşteri kaydı bulunamadı.")
