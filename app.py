@@ -799,14 +799,14 @@ if uploaded_file is not None:
         if "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
             processed_acc = process_personnel_account_data(raw_df)
             st.session_state.account_df = processed_acc
-            st.session_state.hesap_df = processed_acc.copy()
+            st.session_state.hesap_cards_df = processed_acc.copy() # Kartlar için de başlangıç verisini atıyoruz
             
         if "MÜŞTERİ" in cols_str or "MUSTERI" in cols_str or "BORÇ" in cols_str or "BORC" in cols_str or "FATURA BORCU" in cols_str or "F4" in uploaded_file.name.upper():
             processed_f4 = process_f4_payment_data(raw_df)
             st.session_state.f4_df = processed_f4
             st.session_state.editable_f4_df = processed_f4.copy()
     except Exception as e:
-        st.error(f"Dosya işlenirken hata tutulurken hata oluştu: {e}")
+        st.error(f"Dosya işlenirken hata oluştu: {e}")
 
 # ==========================================
 # ANA EKRAN İÇERİKLERİ VE PERSONEL KARTLARI
@@ -825,6 +825,7 @@ if st.session_state.active_tab == "HESAP":
         updated_rows = []
         for idx, row in current_df.iterrows():
             p_adi = row["Personel Adı"]
+            # Dinamik olarak her personelin kendi adıyla GitHub'dan görseli çekiliyor:
             avatar_url = get_github_avatar(p_adi)
             
             with st.container():
