@@ -806,33 +806,60 @@ if uploaded_file is not None:
             st.session_state.f4_df = processed_f4
             st.session_state.editable_f4_df = processed_f4.copy()
     except Exception as e:
-        st.error(f"Dosya işlenirken hata oluştu: {e}")
+        st.error(f"Dosya işlenirken hata tutulurken hata oluştu: {e}")
 
 # ==========================================
-# ANA EKRAN İÇERİKLERİ VE MANÜEL DÜZENLEME
+# ANA EKRAN İÇERİKLERİ VE PERSONEL KARTLARI
 # ==========================================
 if st.session_state.active_tab == "HESAP":
     st.title("💰 Günlük Personel Hesap ve Kasa Takip")
     
     if st.session_state.account_df is not None:
-        st.subheader("Personel Hesap Tablosu")
+        st.subheader("Personel Hesap Kartları ve Düzenleme Alanı")
         
-        # Manüel Tablo Düzenleme Özelliği
-        edited_account_df = st.data_editor(
-            st.session_state.account_df,
-            num_rows="dynamic",
-            use_container_width=True,
-            key="account_editor"
-        )
+        if 'hesap_cards_df' not in st.session_state or st.session_state.hesap_cards_df is None:
+            st.session_state.hesap_cards_df = st.session_state.account_df.copy()
+            
+        current_df = st.session_state.hesap_cards_df
         
-        if "Nakit Ft Tutarı Topl" in edited_account_df.columns and "Nakit Ödeme Tutarı Topl" in edited_account_df.columns and "Banka/ATM" in edited_account_df.columns:
-            edited_account_df["Hesap"] = (
-                edited_account_df["Nakit Ft Tutarı Topl"] + 
-                edited_account_df["Nakit Ödeme Tutarı Topl"] - 
-                edited_account_df["Banka/ATM"]
-            )
+        updated_rows = []
+        for idx, row in current_df.iterrows():
+            p_adi = row["Personel Adı"]
+            avatar_url = get_github_avatar(p_adi)
+            
+            with st.container():
+                st.markdown(f"""
+                <div class="avatar-card" style="display: flex; align-items: center; gap: 20px; text-align: left; margin-bottom: 10px;">
+                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/ATANMAMIŞ.png';" />
+                    <div style="flex-grow: 1;">
+                        <h3 style="margin: 0; color: #00B4D8;">{p_adi}</h3>
+                        <p style="margin: 2px 0 0 0; color: #B0C4DE; font-size: 13px;">Personel Hesap ve Ödeme Detay Kartı</p>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    val_ft = st.number_input(f"Nakit FT ({p_adi})", value=float(row["Nakit Ft Tutarı Topl"]), step=10.0, key=f"ft_{idx}")
+                with c2:
+                    val_odeme = st.number_input(f"Nakit Ödeme ({p_adi})", value=float(row["Nakit Ödeme Tutarı Topl"]), step=10.0, key=f"odeme_{idx}")
+                with c3:
+                    val_banka = st.number_input(f"Banka / ATM ({p_adi})", value=float(row["Banka/ATM"]), step=10.0, key=f"banka_{idx}")
+                
+                hesap_tutar = val_ft + val_odeme - val_banka
+                st.info(f"Hesap Tutarı: **{hesap_tutar:,.2f} TL**")
+                st.markdown("---")
+                
+                updated_rows.append({
+                    "Personel Adı": p_adi,
+                    "Nakit Ft Tutarı Topl": val_ft,
+                    "Nakit Ödeme Tutarı Topl": val_odeme,
+                    "Banka/ATM": val_banka,
+                    "Hesap": hesap_tutar,
+                    "İşlem": True
+                })
         
-        st.session_state.hesap_df = edited_account_df
+        st.session_state.hesap_df = pd.DataFrame(updated_rows)
         
         col1, col2 = st.columns([2, 1])
         with col1:
@@ -840,7 +867,7 @@ if st.session_state.active_tab == "HESAP":
             st.session_state.kasa_miktari = kasa_miktari
             
         with col2:
-            total_hesap = edited_account_df["Hesap"].sum() if not edited_account_df.empty else 0.0
+            total_hesap = st.session_state.hesap_df["Hesap"].sum() if not st.session_state.hesap_df.empty else 0.0
             fark = kasa_miktari - total_hesap
             st.metric("Toplam Hesap", f"{total_hesap:,.2f} TL")
             if fark > 0:
@@ -850,8 +877,8 @@ if st.session_state.active_tab == "HESAP":
             else:
                 st.metric("Kasa Durumu", "TAM (0.00 TL)")
                 
-        if not edited_account_df.empty:
-            pdf_bytes = generate_hesap_pdf(edited_account_df, kasa_miktari)
+        if not st.session_state.hesap_df.empty:
+            pdf_bytes = generate_hesap_pdf(st.session_state.hesap_df, kasa_miktari)
             st.download_button(
                 label="📥 Hesap Özetini PDF Olarak İndir",
                 data=pdf_bytes,
