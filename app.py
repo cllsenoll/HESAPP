@@ -38,28 +38,12 @@ KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "(Şube Şefi)"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI & AKILLI AVATAR
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI
 # ==========================================
 def get_github_avatar(personel_adi):
     clean_name = str(personel_adi).strip()
     encoded_name = urllib.parse.quote(clean_name)
     return f"https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/{encoded_name}.png"
-
-def get_avatar_html(personel_adi):
-    avatar_url = get_github_avatar(personel_adi)
-    # İsim baş harflerini çıkarma (örn: "AHMET BERKAN ÖKSÜZ" -> "AB")
-    parts = str(personel_adi).split()
-    initials = "".join([p[0] for p in parts[:2]]) if parts else "P"
-    
-    # HTML içinde resim yüklenemezse gizlenip baş harf rozetini gösteren akıllı yapı
-    return f"""
-    <div style="position: relative; width: 80px; height: 80px; flex-shrink: 0;">
-        <div class="fallback-avatar" style="position: absolute; top: 0; left: 0; width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #00B4D8, #03045E); color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 24px; border: 2px solid #00B4D8; z-index: 1;">
-            {initials}
-        </div>
-        <img src="{avatar_url}" class="avatar-img" style="position: absolute; top: 0; left: 0; width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid #00B4D8; z-index: 2;" onerror="this.style.display='none';" />
-    </div>
-    """
 
 # ==========================================
 # MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
@@ -236,6 +220,14 @@ custom_css = """
         text-align: center;
         box-shadow: 0 4px 6px rgba(0,0,0,0.2);
         margin-bottom: 15px;
+    }
+    .avatar-img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #00B4D8;
+        margin-bottom: 8px;
     }
 </style>
 """
@@ -807,7 +799,7 @@ if uploaded_file is not None:
         if "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
             processed_acc = process_personnel_account_data(raw_df)
             st.session_state.account_df = processed_acc
-            st.session_state.hesap_cards_df = processed_acc.copy()
+            st.session_state.hesap_cards_df = processed_acc.copy() # Kartlar için de başlangıç verisini atıyoruz
             
         if "MÜŞTERİ" in cols_str or "MUSTERI" in cols_str or "BORÇ" in cols_str or "BORC" in cols_str or "FATURA BORCU" in cols_str or "F4" in uploaded_file.name.upper():
             processed_f4 = process_f4_payment_data(raw_df)
@@ -833,13 +825,13 @@ if st.session_state.active_tab == "HESAP":
         updated_rows = []
         for idx, row in current_df.iterrows():
             p_adi = row["Personel Adı"]
-            # Akıllı Avatar HTML (Resim varsa yüklenir, yoksa isim baş harfi gösterilir)
-            avatar_html = get_avatar_html(p_adi)
+            # Dinamik olarak her personelin kendi adıyla GitHub'dan görseli çekiliyor:
+            avatar_url = get_github_avatar(p_adi)
             
             with st.container():
                 st.markdown(f"""
                 <div class="avatar-card" style="display: flex; align-items: center; gap: 20px; text-align: left; margin-bottom: 10px;">
-                    {avatar_html}
+                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/ATANMAMIŞ.png';" />
                     <div style="flex-grow: 1;">
                         <h3 style="margin: 0; color: #00B4D8;">{p_adi}</h3>
                         <p style="margin: 2px 0 0 0; color: #B0C4DE; font-size: 13px;">Personel Hesap ve Ödeme Detay Kartı</p>
@@ -919,11 +911,11 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         
         secilen_personel = st.selectbox("Personel Seçin", options=personeller)
         
-        # F4 SEKMESİ İÇİN AKILLI AVATAR
-        avatar_html = get_avatar_html(secilen_personel)
+        # PERSONEL GÖRSELİ GÖSTERİM KARTI
+        avatar_url = get_github_avatar(secilen_personel)
         st.markdown(f"""
         <div class="avatar-card" style="display: flex; align-items: center; gap: 20px; text-align: left;">
-            {avatar_html}
+            <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/ATANMAMIŞ.png';" />
             <div>
                 <h3 style="margin: 0; color: #00B4D8;">{secilen_personel}</h3>
                 <p style="margin: 5px 0 0 0; color: #B0C4DE;">Personel F4 Ödeme ve Tahsilat Listesi</p>
