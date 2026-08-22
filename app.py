@@ -88,7 +88,7 @@ MUSTERI_PERSONEL_MAP = {
     "ORCA HOME TEKSTİL İTHALAT İHRACATSANAYİ VE TİCARET LİMİTED ŞİRKETİ": "BURCU DÜREN",
     "OTEKSO MÜHENDİSLİK TASARIM MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
     "PROLİFT ASANSÖR SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
-    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRLİK": "BURCU DÜREN",
+    "S.S.MARMARA ZEYTİN TARIM SAT.KOOP.BİR.MARMARABİRKİK": "BURCU DÜREN",
     "T-BİYOTEKNOLOJİ LABORATUVAR ESTETİK MEDİKAL KOZMETİK SANAYİVE TİCARET LTD.ŞTİ.": "BURCU DÜREN",
     "UĞURLU FİNİSAJ SİSTEMLERİ SANAYİ VE TİCARET ANONİM ŞİRKETİ": "BURCU DÜREN",
     "VARNA DERİ SANAYİ VE TİCARET A.Ş.": "BURCU DÜREN",
@@ -150,7 +150,7 @@ PERSONEL_LISTESI = [
 ]
 
 # ==========================================
-# CSS VE TEMA KODLARI
+# ÖZEL CSS VE TEMA STİLLERİ
 # ==========================================
 custom_css = """
 <style>
@@ -210,6 +210,24 @@ custom_css = """
         font-weight: bold !important;
         border-radius: 8px !important;
         box-shadow: 0 4px 0 #9E2A2B, 0 6px 8px rgba(0,0,0,0.3) !important;
+    }
+    
+    .avatar-card {
+        background: #1E3E62;
+        border: 1px solid rgba(0, 180, 216, 0.3);
+        border-radius: 12px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        margin-bottom: 15px;
+    }
+    .avatar-img {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid #00B4D8;
+        margin-bottom: 8px;
     }
 </style>
 """
@@ -797,10 +815,9 @@ if st.session_state.active_tab == "HESAP":
     st.title("💰 Günlük Personel Hesap ve Kasa Takip")
     
     if st.session_state.account_df is not None:
-        # Hesap Sekmesi Ekranı
         st.subheader("Personel Hesap Tablosu")
         
-        # Manüel Tablo Düzenleme Özelliği (FT ve Ödeme sütunları dahil)
+        # Manüel Tablo Düzenleme Özelliği
         edited_account_df = st.data_editor(
             st.session_state.account_df,
             num_rows="dynamic",
@@ -808,7 +825,6 @@ if st.session_state.active_tab == "HESAP":
             key="account_editor"
         )
         
-        # Hesaplama güncellemeleri
         if "Nakit Ft Tutarı Topl" in edited_account_df.columns and "Nakit Ödeme Tutarı Topl" in edited_account_df.columns and "Banka/ATM" in edited_account_df.columns:
             edited_account_df["Hesap"] = (
                 edited_account_df["Nakit Ft Tutarı Topl"] + 
@@ -849,7 +865,6 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Tahsilat Listesi")
     
     if st.session_state.f4_df is not None:
-        # F4 Verisini Manüel Düzenleyebilme Alanı Eklenmiştir
         st.subheader("F4 Verilerini Manüel Düzenle (Fatura Borcu ve Diğer Alanlar)")
         
         if st.session_state.editable_f4_df is None:
@@ -863,15 +878,25 @@ elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
         )
         st.session_state.editable_f4_df = edited_f4
         
-        # Personel bazlı filtreleme
         aktif_f4_df = st.session_state.editable_f4_df
         personeller = [p for p in PERSONEL_LISTESI if p in aktif_f4_df["Personel"].values] or PERSONEL_LISTESI
         
         secilen_personel = st.selectbox("Personel Seçin", options=personeller)
         
+        # PERSONEL GÖRSELİ GÖSTERİM KARTI
+        avatar_url = get_github_avatar(secilen_personel)
+        st.markdown(f"""
+        <div class="avatar-card" style="display: flex; align-items: center; gap: 20px; text-align: left;">
+            <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/ATANMAMIŞ.png';" />
+            <div>
+                <h3 style="margin: 0; color: #00B4D8;">{secilen_personel}</h3>
+                <p style="margin: 5px 0 0 0; color: #B0C4DE;">Personel F4 Ödeme ve Tahsilat Listesi</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        
         personel_df = aktif_f4_df[aktif_f4_df["Personel"] == secilen_personel]
         
-        st.write(f"### {secilen_personel} - F4 Listesi")
         if not personel_df.empty:
             st.dataframe(personel_df, use_container_width=True)
             
