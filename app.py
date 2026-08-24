@@ -38,12 +38,22 @@ KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "(Şube Şefi)"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI (GÜNCELLENDİ)
 # ==========================================
 def get_github_avatar(personel_adi):
+    if not personel_adi:
+        return ""
+    # Türkçe karakterleri düzgün ve güvenli bir şekilde İngilizce karakterlere dönüştür
+    tr_map = {'İ': 'I', 'ı': 'i', 'Ş': 'S', 'ş': 's', 'Ğ': 'G', 'ğ': 'g', 'Ü': 'U', 'ü': 'u', 'Ö': 'O', 'ö': 'o', 'Ç': 'C', 'ç': 'c'}
     clean_name = str(personel_adi).strip()
+    for k, v in tr_map.items():
+        clean_name = clean_name.replace(k, v)
+    clean_name = clean_name.upper()
+    
     encoded_name = urllib.parse.quote(clean_name)
-    return f"https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/{encoded_name}.png"
+    # jsDelivr veya doğrudan GitHub raw linkini kullanabilirsiniz. 
+    # Not: GitHub repository'nizin public (açık) olduğundan ve dosyaların ana dizinde (.png uzantılı) olduğundan emin olun.
+    return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{encoded_name}.png"
 
 # ==========================================
 # MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
@@ -796,149 +806,79 @@ if uploaded_file is not None:
         
         cols_str = " ".join([str(c).upper() for c in raw_df.columns])
         
-        if "NAKIT" in cols_str or "FT" in cols_str or "ODEME" in cols_str or "BANKA" in cols_str or "PERSONEL" in cols_str:
-            processed_acc = process_personnel_account_data(raw_df)
-            st.session_state.account_df = processed_acc
-            st.session_state.hesap_cards_df = processed_acc.copy() # Kartlar için de başlangıç verisini atıyoruz
-            
-        if "MÜŞTERİ" in cols_str or "MUSTERI" in cols_str or "BORÇ" in cols_str or "BORC" in cols_str or "FATURA BORCU" in cols_str or "F4" in uploaded_file.name.upper():
-            processed_f4 = process_f4_payment_data(raw_df)
-            st.session_state.f4_df = processed_f4
-            st.session_state.editable_f4_df = processed_f4.copy()
+        if "NAKIT" in cols_str or "PERSONEL" in cols_str or "FT" in cols_str or "ODEME" in cols_str:
+            st.session_state.hesap_df = process_personnel_account_data(raw_df)
+        else:
+            st.session_state.f4_df = process_f4_payment_data(raw_df)
     except Exception as e:
-        st.error(f"Dosya işlenirken hata oluştu: {e}")
+        st.error(f"Dosya okuma hatası: {e}")
 
 # ==========================================
-# ANA EKRAN İÇERİKLERİ VE PERSONEL KARTLARI
+# ANA EKRAN / HESAP TABI GÖSTERİMİ
 # ==========================================
 if st.session_state.active_tab == "HESAP":
-    st.title("💰 Günlük Personel Hesap ve Kasa Takip")
+    st.title("💰 Günlük Personel Hesap ve Kasa Takibi")
     
-    if st.session_state.account_df is not None:
-        st.subheader("Personel Hesap Kartları ve Düzenleme Alanı")
+    if st.session_state.hesap_df is not None:
+        df_hesap = st.session_state.hesap_df
         
-        if 'hesap_cards_df' not in st.session_state or st.session_state.hesap_cards_df is None:
-            st.session_state.hesap_cards_df = st.session_state.account_df.copy()
-            
-        current_df = st.session_state.hesap_cards_df
-        
-        updated_rows = []
-        for idx, row in current_df.iterrows():
-            p_adi = row["Personel Adı"]
-            # Dinamik olarak her personelin kendi adıyla GitHub'dan görseli çekiliyor:
-            avatar_url = get_github_avatar(p_adi)
-            
-            with st.container():
+        # Personel Kartları ve Resimleri Gösterme Alanı
+        st.subheader("Personel Durum Kartları")
+        cols = st.columns(4)
+        for i, (_, row) in enumerate(df_hesap.iterrows()):
+            p_name = row["Personel Adı"]
+            avatar_url = get_github_avatar(p_name)
+            with cols[i % 4]:
                 st.markdown(f"""
-                <div class="avatar-card" style="display: flex; align-items: center; gap: 20px; text-align: left; margin-bottom: 10px;">
-                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/ATANMAMIŞ.png';" />
-                    <div style="flex-grow: 1;">
-                        <h3 style="margin: 0; color: #00B4D8;">{p_adi}</h3>
-                        <p style="margin: 2px 0 0 0; color: #B0C4DE; font-size: 13px;">Personel Hesap ve Ödeme Detay Kartı</p>
-                    </div>
+                <div class="avatar-card">
+                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null;this.src='https://api.iconify.design/mdi:account-circle.svg?color=%2300b4d8';">
+                    <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">{p_name}</div>
+                    <div style="color: #00B4D8; font-size: 13px;">Hesap: {row['Hesap']:,.2f} TL</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    val_ft = st.number_input(f"Nakit FT ({p_adi})", value=float(row["Nakit Ft Tutarı Topl"]), step=10.0, key=f"ft_{idx}")
-                with c2:
-                    val_odeme = st.number_input(f"Nakit Ödeme ({p_adi})", value=float(row["Nakit Ödeme Tutarı Topl"]), step=10.0, key=f"odeme_{idx}")
-                with c3:
-                    val_banka = st.number_input(f"Banka / ATM ({p_adi})", value=float(row["Banka/ATM"]), step=10.0, key=f"banka_{idx}")
-                
-                hesap_tutar = val_ft + val_odeme - val_banka
-                st.info(f"Hesap Tutarı: **{hesap_tutar:,.2f} TL**")
-                st.markdown("---")
-                
-                updated_rows.append({
-                    "Personel Adı": p_adi,
-                    "Nakit Ft Tutarı Topl": val_ft,
-                    "Nakit Ödeme Tutarı Topl": val_odeme,
-                    "Banka/ATM": val_banka,
-                    "Hesap": hesap_tutar,
-                    "İşlem": True
-                })
+        st.markdown("---")
+        st.subheader("Hesap Tablosu ve Düzenleme")
         
-        st.session_state.hesap_df = pd.DataFrame(updated_rows)
+        edited_df = st.data_editor(
+            df_hesap,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="hesap_data_editor"
+        )
         
-        col1, col2 = st.columns([2, 1])
-        with col1:
-            kasa_miktari = st.number_input("Kasadaki Nakit Miktarını Giriniz (TL):", min_value=0.0, value=float(st.session_state.kasa_miktari), step=100.0)
-            st.session_state.kasa_miktari = kasa_miktari
+        st.session_state.kasa_miktari = st.number_input(
+            "Toplam Kasa Miktarı (TL)", 
+            value=float(st.session_state.kasa_miktari), 
+            format="%.2f"
+        )
+        
+        total_hesap = edited_df["Hesap"].sum() if "Hesap" in edited_df.columns else 0.0
+        fark = st.session_state.kasa_miktari - total_hesap
+        
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Toplam Hesap", f"{total_hesap:,.2f} TL")
+        col2.metric("Kasa Miktarı", f"{st.session_state.kasa_miktari:,.2f} TL")
+        if fark > 0:
+            col3.metric("Kasa Durumu", f"AÇIK: {abs(fark):,.2f} TL", delta_color="inverse")
+        elif fark < 0:
+            col3.metric("Kasa Durumu", f"FAZLA: {abs(fark):,.2f} TL", delta_color="inverse")
+        else:
+            col3.metric("Kasa Durumu", "KASA TAM", delta_color="normal")
             
-        with col2:
-            total_hesap = st.session_state.hesap_df["Hesap"].sum() if not st.session_state.hesap_df.empty else 0.0
-            fark = kasa_miktari - total_hesap
-            st.metric("Toplam Hesap", f"{total_hesap:,.2f} TL")
-            if fark > 0:
-                st.metric("Kasa Durumu", f"AÇIK: {abs(fark):,.2f} TL", delta_color="inverse")
-            elif fark < 0:
-                st.metric("Kasa Durumu", f"FAZLA: {abs(fark):,.2f} TL", delta_color="inverse")
-            else:
-                st.metric("Kasa Durumu", "TAM (0.00 TL)")
-                
-        if not st.session_state.hesap_df.empty:
-            pdf_bytes = generate_hesap_pdf(st.session_state.hesap_df, kasa_miktari)
-            st.download_button(
-                label="📥 Hesap Özetini PDF Olarak İndir",
-                data=pdf_bytes,
-                file_name="Gunluk_Hesap_Ozeti.pdf",
-                mime="application/pdf"
-            )
+        pdf_bytes = generate_hesap_pdf(edited_df, st.session_state.kasa_miktari)
+        st.download_button(
+            label="📥 Hesap Özetini PDF Olarak İndir",
+            data=pdf_bytes,
+            file_name="Gunluk_Personel_Hesap_Raporu.pdf",
+            mime="application/pdf"
+        )
     else:
-        st.info("Lütfen sol menüden hesap raporu dosyanızı yükleyin.")
+        st.info("Lütfen sol panelden personel hesap verilerini içeren bir dosya yükleyin.")
 
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Tahsilat Listesi")
-    
     if st.session_state.f4_df is not None:
-        st.subheader("F4 Verilerini Manüel Düzenle (Fatura Borcu ve Diğer Alanlar)")
-        
-        if st.session_state.editable_f4_df is None:
-            st.session_state.editable_f4_df = st.session_state.f4_df.copy()
-            
-        edited_f4 = st.data_editor(
-            st.session_state.editable_f4_df,
-            num_rows="dynamic",
-            use_container_width=True,
-            key="f4_editor"
-        )
-        st.session_state.editable_f4_df = edited_f4
-        
-        aktif_f4_df = st.session_state.editable_f4_df
-        personeller = [p for p in PERSONEL_LISTESI if p in aktif_f4_df["Personel"].values] or PERSONEL_LISTESI
-        
-        secilen_personel = st.selectbox("Personel Seçin", options=personeller)
-        
-        # PERSONEL GÖRSELİ GÖSTERİM KARTI
-        avatar_url = get_github_avatar(secilen_personel)
-        st.markdown(f"""
-        <div class="avatar-card" style="display: flex; align-items: center; gap: 20px; text-align: left;">
-            <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/gh/cllsenoll/F4-HESAP@main/ATANMAMIŞ.png';" />
-            <div>
-                <h3 style="margin: 0; color: #00B4D8;">{secilen_personel}</h3>
-                <p style="margin: 5px 0 0 0; color: #B0C4DE;">Personel F4 Ödeme ve Tahsilat Listesi</p>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        personel_df = aktif_f4_df[aktif_f4_df["Personel"] == secilen_personel]
-        
-        if not personel_df.empty:
-            st.dataframe(personel_df, use_container_width=True)
-            
-            toplam_borc = personel_df["Fatura Borcu"].sum()
-            st.info(f"Seçilen Personelin Toplam Borç/Tahsilat Tutarı: **{toplam_borc:,.2f} TL**")
-            
-            pdf_f4_bytes = generate_f4_pdf(secilen_personel, personel_df)
-            st.download_button(
-                label=f"📥 {secilen_personel} - F4 Listesini PDF İndir",
-                data=pdf_f4_bytes,
-                file_name=f"F4_Listesi_{secilen_personel.replace(' ', '_')}.pdf",
-                mime="application/pdf"
-            )
-        else:
-            st.warning("Bu personele ait F4 kaydı bulunamadı.")
+        st.dataframe(st.session_state.f4_df, use_container_width=True)
     else:
-        st.info("Lütfen sol menüden F4 / Müşteri listesi dosyanızı yükleyin.")
+        st.info("Lütfen sol panelden F4 listesini içeren bir dosya yükleyin.")
