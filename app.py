@@ -43,7 +43,6 @@ KULLANICI_GOREV = "(Şube Şefi)"
 def get_github_avatar(personel_adi):
     if not personel_adi:
         return ""
-    # Türkçe karakterleri düzgün ve güvenli bir şekilde İngilizce karakterlere dönüştür
     tr_map = {'İ': 'I', 'ı': 'i', 'Ş': 'S', 'ş': 's', 'Ğ': 'G', 'ğ': 'g', 'Ü': 'U', 'ü': 'u', 'Ö': 'O', 'ö': 'o', 'Ç': 'C', 'ç': 'c'}
     clean_name = str(personel_adi).strip()
     for k, v in tr_map.items():
@@ -51,8 +50,6 @@ def get_github_avatar(personel_adi):
     clean_name = clean_name.upper()
     
     encoded_name = urllib.parse.quote(clean_name)
-    # jsDelivr veya doğrudan GitHub raw linkini kullanabilirsiniz. 
-    # Not: GitHub repository'nizin public (açık) olduğundan ve dosyaların ana dizinde (.png uzantılı) olduğundan emin olun.
     return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{encoded_name}.png"
 
 # ==========================================
@@ -822,13 +819,13 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        # Personel Kartları ve Resimleri Gösterme Alanı
+        # Personel Kartları ve Resimleri Gösterme Alanı (Eski sıra düzeniyle)
         st.subheader("Personel Durum Kartları")
         cols = st.columns(4)
         for i, (_, row) in enumerate(df_hesap.iterrows()):
             p_name = row["Personel Adı"]
             avatar_url = get_github_avatar(p_name)
-            with cols[i % 4]:
+            with cols[i % len(cols)]:
                 st.markdown(f"""
                 <div class="avatar-card">
                     <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null;this.src='https://api.iconify.design/mdi:account-circle.svg?color=%2300b4d8';">
