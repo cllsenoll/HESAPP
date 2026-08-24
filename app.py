@@ -150,12 +150,6 @@ MUSTERI_PERSONEL_MAP = {
     "ÖZBAYRAK KIZAK KORUMA SİSTEMLERİ ENDÜSTRİ MAKİNE SANAYİ VE TİCARET ANONİM ŞİRKETİ": "SUAT ARI"
 }
 
-PERSONEL_LISTESI = [
-    "HATİCE KÜBRA IŞIK", "ALATTİN CEBECİ", "BURCU DÜREN",
-    "AHMET BERKAN ÖKSÜZ", "HASAN SAĞLAM", "MEHMET KAYMAZ",
-    "SUAT ARI", "SERGEN GÖRÜROĞLU", "CELAL ŞENOL", "ATANMAMIŞ"
-]
-
 # ==========================================
 # ÖZEL CSS VE TEMA STİLLERİ
 # ==========================================
@@ -235,6 +229,7 @@ custom_css = """
         object-fit: cover;
         border: 2px solid #00B4D8;
         margin-bottom: 8px;
+        background-color: #0B192C;
     }
 </style>
 """
@@ -819,7 +814,7 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        # Personel Kartları ve Resimleri Gösterme Alanı (Eski sıra düzeniyle)
+        # Personel Kartları ve Resimleri Gösterme Alanı (Güvenli Fallback Mekanizmalı)
         st.subheader("Personel Durum Kartları")
         cols = st.columns(4)
         for i, (_, row) in enumerate(df_hesap.iterrows()):
@@ -828,7 +823,7 @@ if st.session_state.active_tab == "HESAP":
             with cols[i % len(cols)]:
                 st.markdown(f"""
                 <div class="avatar-card">
-                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null;this.src='https://api.iconify.design/mdi:account-circle.svg?color=%2300b4d8';">
+                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'80\\' height=\\'80\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
                     <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">{p_name}</div>
                     <div style="color: #00B4D8; font-size: 13px;">Hesap: {row['Hesap']:,.2f} TL</div>
                 </div>
