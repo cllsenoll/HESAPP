@@ -436,7 +436,7 @@ def process_personnel_account_data(df):
 
     result_df = pd.DataFrame(final_rows)
     if not result_df.empty:
-        # İstenen Hesap Mantığı Entegrasyonu: Nakit Ft + Nakit Ödeme - Banka/ATM
+        # Hesap Mantığı Entegrasyonu: Nakit Ft + Nakit Ödeme - Banka/ATM
         result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
         result_df["İşlem"] = False
         result_df.reset_index(drop=True, inplace=True)
@@ -788,8 +788,8 @@ if st.session_state.active_tab == "HESAP":
             key="account_data_editor"
         )
 
-        # Tablo üzerinde Banka/ATM değiştiğinde Hesap sütununu anlık yeniden hesaplama
-        edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl"] - edited_df["Banka/ATM"]
+        # Tablo üzerinde Banka/ATM değiştiğinde Hesap sütununu anlık yeniden hesaplama (Banka/ATM çıkarma işlemi güvenceye alındı)
+        edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl'] - edited_df["Banka/ATM"]
         st.session_state.hesap_df = edited_df
 
         st.markdown("---")
