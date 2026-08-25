@@ -31,8 +31,6 @@ if 'raw_df' not in st.session_state:
     st.session_state.raw_df = None
 if 'f4_df' not in st.session_state:
     st.session_state.f4_df = None
-if 'editable_f4_df' not in st.session_state:
-    st.session_state.editable_f4_df = None
 
 KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "(Şube Şefi)"
@@ -218,7 +216,7 @@ custom_css = """
         background: linear-gradient(145deg, #162B48 0%, #1E3E62 100%);
         border: 2px solid #FF8500;
         border-radius: 14px;
-        padding: 18px;
+        padding: 16px;
         text-align: center;
         box-shadow: 0 6px 12px rgba(255, 133, 0, 0.15);
         margin-bottom: 18px;
@@ -235,21 +233,21 @@ custom_css = """
         border-radius: 50%;
         object-fit: cover;
         border: 3px solid #00B4D8;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         background-color: #0B192C;
     }
     .personel-isim {
         font-weight: 700;
         font-size: 15px;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         color: #FFFFFF;
         letter-spacing: 0.5px;
     }
-    /* Daha büyük hesap tutarı görünümü */
     .personel-hesap {
         color: #FFB703;
         font-size: 19px;
         font-weight: 800;
+        margin-bottom: 6px;
         text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
 </style>
@@ -652,135 +650,6 @@ def generate_hesap_pdf(df_hesap, kasa_miktari):
     return buffer.getvalue()
 
 # ==========================================
-# F4 PERSONEL LİSTESİ PDF OLUŞTURMA MOTORU
-# ==========================================
-def generate_f4_pdf(personel_name, df_personel):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=30,
-        leftMargin=30,
-        topMargin=30,
-        bottomMargin=30
-    )
-
-    styles = getSampleStyleSheet()
-    
-    title_style = ParagraphStyle(
-        'TitleStyle',
-        parent=styles['Heading1'],
-        fontName='Helvetica-Bold',
-        fontSize=15,
-        leading=18,
-        textColor=colors.HexColor("#0B192C"),
-        alignment=1
-    )
-
-    subtitle_style = ParagraphStyle(
-        'SubTitleStyle',
-        parent=styles['Normal'],
-        fontName='Helvetica',
-        fontSize=11,
-        leading=14,
-        textColor=colors.HexColor("#1E3E62"),
-        alignment=1
-    )
-
-    table_header_style = ParagraphStyle(
-        'TableHeader',
-        fontName='Helvetica-Bold',
-        fontSize=10,
-        leading=12,
-        textColor=colors.white,
-        alignment=0
-    )
-
-    table_body_style = ParagraphStyle(
-        'TableBody',
-        fontName='Helvetica',
-        fontSize=9,
-        leading=11,
-        textColor=colors.HexColor("#111111"),
-        alignment=0
-    )
-
-    table_body_num_style = ParagraphStyle(
-        'TableBodyNum',
-        fontName='Helvetica',
-        fontSize=9,
-        leading=11,
-        textColor=colors.HexColor("#111111"),
-        alignment=2
-    )
-
-    elements = []
-
-    elements.append(Paragraph(tr_fix("YURTICI KARGO GORUKLE ACENTESI"), title_style))
-    elements.append(Paragraph(tr_fix(f"F4 ODEME VE TAHSILAT LISTESI - <b>{personel_name}</b>"), subtitle_style))
-    elements.append(Spacer(1, 15))
-
-    table_data = [
-        [
-            Paragraph(tr_fix("S.No"), table_header_style),
-            Paragraph(tr_fix("Musteri Adi"), table_header_style),
-            Paragraph(tr_fix("Aciklama"), table_header_style),
-            Paragraph(tr_fix("Fatura Borcu (TL)"), table_header_style)
-        ]
-    ]
-
-    total_borc = 0.0
-    for idx, (_, row) in enumerate(df_personel.iterrows(), 1):
-        borc = float(row["Fatura Borcu"])
-        total_borc += borc
-        table_data.append([
-            Paragraph(tr_fix(str(idx)), table_body_style),
-            Paragraph(tr_fix(str(row["Müşteri Adı"])), table_body_style),
-            Paragraph(tr_fix(str(row["Açıklama"])) if row["Açıklama"] else "-", table_body_style),
-            Paragraph(f"{borc:,.2f} TL", table_body_num_style)
-        ])
-
-    table_data.append([
-        Paragraph("<b>TOPLAM</b>", table_body_style),
-        Paragraph("", table_body_style),
-        Paragraph("", table_body_style),
-        Paragraph(f"<b>{total_borc:,.2f} TL</b>", table_body_num_style)
-    ])
-
-    col_widths = [35, 230, 150, 100]
-    t = Table(table_data, colWidths=col_widths, repeatRows=1)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1E3E62")),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#CCCCCC")),
-        ('BACKGROUND', (0, 1), (-1, -2), colors.HexColor("#F8F9FA")),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor("#F1F3F5")]),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#E9ECEF")),
-        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor("#1E3E62")),
-    ]))
-
-    elements.append(t)
-    elements.append(Spacer(1, 25))
-
-    imza_data = [
-        [Paragraph(tr_fix("<b>Teslim Eden</b>"), table_body_style), Paragraph(tr_fix("<b>Teslim Alan (Personel)</b>"), table_body_style)],
-        [Paragraph(tr_fix("<br/><br/>Imza: ........................"), table_body_style), Paragraph(tr_fix(f"<br/><br/><b>{personel_name}</b><br/>Imza: ........................"), table_body_style)]
-    ]
-    imza_table = Table(imza_data, colWidths=[250, 250])
-    imza_table.setStyle(TableStyle([
-        ('ALIGN', (0,0), (-1,-1), 'LEFT'),
-        ('VALIGN', (0,0), (-1,-1), 'TOP')
-    ]))
-    elements.append(imza_table)
-
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer.getvalue()
-
-# ==========================================
 # SIDEBAR VE GEZİNTİ MENÜSÜ
 # ==========================================
 with st.sidebar:
@@ -835,30 +704,41 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        # Personel Kartları ve Resimleri Gösterme Alanı (Mavi-Turuncu Tema & Büyük Hesap Fontu)
-        st.subheader("Personel Durum Kartları")
-        cols = st.columns(4)
-        for i, (_, row) in enumerate(df_hesap.iterrows()):
-            p_name = row["Personel Adı"]
-            avatar_url = get_github_avatar(p_name)
-            with cols[i % len(cols)]:
-                st.markdown(f"""
-                <div class="avatar-card">
-                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'85\\' height=\\'85\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
-                    <div class="personel-isim">{p_name}</div>
-                    <div class="personel-hesap">Hesap: {row['Hesap']:,.2f} TL</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-        st.markdown("---")
         st.subheader("Hesap Tablosu ve Düzenleme")
         
+        # Tablo üzerinden interaktif düzenleme (İşlem sütunundaki onay kutuları dahil)
         edited_df = st.data_editor(
             df_hesap,
             num_rows="dynamic",
             use_container_width=True,
             key="hesap_data_editor"
         )
+        
+        # Tablodaki onay durumlarını session_state dataframe'ine senkronize et
+        st.session_state.hesap_df = edited_df
+
+        st.markdown("---")
+        st.subheader("Personel Durum Kartları")
+        cols = st.columns(4)
+        for i, (_, row) in enumerate(edited_df.iterrows()):
+            p_name = row["Personel Adı"]
+            avatar_url = get_github_avatar(p_name)
+            islem_durumu = row["İşlem"] if "İşlem" in row else False
+            
+            # İşlem durumuna göre kart üstünde rozet gösterimi
+            status_badge = '<span style="color: #2A9D8F; font-size: 13px; font-weight: bold;">✔ İşlem Tamamlandı</span>' if islem_durumu else '<span style="color: #E76F51; font-size: 13px;">⏳ İşlem Bekliyor</span>'
+            
+            with cols[i % len(cols)]:
+                st.markdown(f"""
+                <div class="avatar-card">
+                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'85\\' height=\\'85\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
+                    <div class="personel-isim">{p_name}</div>
+                    <div class="personel-hesap">Hesap: {row['Hesap']:,.2f} TL</div>
+                    <div style="margin-top: 5px;">{status_badge}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+        st.markdown("---")
         
         st.session_state.kasa_miktari = st.number_input(
             "Toplam Kasa Miktarı (TL)", 
