@@ -36,11 +36,11 @@ KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "(Şube Şefi)"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI ('HESAPP')
 # ==========================================
 GITHUB_USER = "cllsenoll"
-GITHUB_REPO = "F4-HESAP"
-GITHUB_BRANCH = "main"  # Deponuz master ise burayı 'master' yapın
+GITHUB_REPO = "HESAPP"
+GITHUB_BRANCH = "main"
 
 def get_github_avatar(personel_adi):
     if not personel_adi:
@@ -56,7 +56,7 @@ def get_github_avatar(personel_adi):
     # URL kodlama (Boşluklar ve özel karakterler için güvenli hale getirme)
     encoded_name = urllib.parse.quote(clean_name)
     
-    # GitHub Raw URL
+    # GitHub Raw URL (HESAPP deposu)
     return f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{encoded_name}.png"
 
 # ==========================================
@@ -220,7 +220,7 @@ custom_css = """
         box-shadow: 0 4px 0 #9E2A2B, 0 6px 8px rgba(0,0,0,0.3) !important;
     }
     
-    /* Mavi ve Turuncu Personel Kartı Tasarımı */
+    /* Personel Kartı Tasarımları (Normal ve Tamamlanmış/Yeşil Durum) */
     .avatar-card {
         background: linear-gradient(145deg, #162B48 0%, #1E3E62 100%);
         border: 2px solid #FF8500;
@@ -231,9 +231,18 @@ custom_css = """
         margin-bottom: 18px;
         transition: transform 0.2s ease;
     }
-    .avatar-card:hover {
+    .avatar-card-completed {
+        background: linear-gradient(145deg, #133824 0%, #1B4D33 100%);
+        border: 2px solid #00FF66;
+        border-radius: 14px;
+        padding: 16px;
+        text-align: center;
+        box-shadow: 0 6px 12px rgba(0, 255, 102, 0.2);
+        margin-bottom: 18px;
+        transition: transform 0.2s ease;
+    }
+    .avatar-card:hover, .avatar-card-completed:hover {
         transform: translateY(-3px);
-        border-color: #00B4D8;
         box-shadow: 0 8px 16px rgba(0, 180, 216, 0.25);
     }
     .avatar-img {
@@ -242,6 +251,15 @@ custom_css = """
         border-radius: 50%;
         object-fit: cover;
         border: 3px solid #00B4D8;
+        margin-bottom: 8px;
+        background-color: #0B192C;
+    }
+    .avatar-img-completed {
+        width: 85px;
+        height: 85px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #00FF66;
         margin-bottom: 8px;
         background-color: #0B192C;
     }
@@ -254,6 +272,13 @@ custom_css = """
     }
     .personel-hesap {
         color: #FFB703;
+        font-size: 19px;
+        font-weight: 800;
+        margin-bottom: 6px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .personel-hesap-completed {
+        color: #00FF66;
         font-size: 19px;
         font-weight: 800;
         margin-bottom: 6px;
@@ -432,7 +457,7 @@ def process_personnel_account_data(df):
 
     result_df = pd.DataFrame(final_rows)
     if not result_df.empty:
-        # Banka/ATM hesaptan düşülerek dinamik hesaplama sağlanır
+        # Kesin Hesap Formülü: Nakit Ft + Nakit Ödeme - Banka/ATM
         result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
         result_df["İşlem"] = False
         result_df.reset_index(drop=True, inplace=True)
@@ -724,31 +749,8 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        # 1. PERSONEL DURUM KARTLARI (YUKARIDA)
-        st.subheader("Personel Durum Kartları")
-        cols = st.columns(4)
-        for i, (_, row) in enumerate(df_hesap.iterrows()):
-            p_name = row["Personel Adı"]
-            avatar_url = get_github_avatar(p_name)
-            islem_durumu = row["İşlem"] if "İşlem" in row else False
-            
-            status_badge = '<span style="color: #00FF66; font-size: 13px; font-weight: bold;">✔ İşlem Tamamlandı</span>' if islem_durumu else '<span style="color: #FFB703; font-size: 13px;">⏳ İşlem Bekliyor</span>'
-            
-            with cols[i % len(cols)]:
-                st.markdown(f"""
-                <div class="avatar-card">
-                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'85\\' height=\\'85\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
-                    <div class="personel-isim">{p_name}</div>
-                    <div class="personel-hesap">Hesap: {row['Hesap']:,.2f} TL</div>
-                    <div style="margin-top: 5px;">{status_badge}</div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-        st.markdown("---")
-        
-        # 2. MODERN TABLO VE DÜZENLEME ALANI
+        # Önce veri düzenleme bileşeni çalıştırılır ki "İşlem" durumları anlık alınabilsin
         st.subheader("Hesap Tablosu ve Düzenleme")
-        
         st.markdown('<div class="modern-table-container">', unsafe_allow_html=True)
         edited_df = st.data_editor(
             df_hesap,
@@ -758,14 +760,44 @@ if st.session_state.active_tab == "HESAP":
         )
         st.markdown('</div>', unsafe_allow_html=True)
         
-        # Banka/ATM değişimine göre Hesabı anlık yeniden hesapla
+        # Banka/ATM ve formül güncellemesi: Hesap = Nakit Ft + Nakit Ödeme - Banka/ATM
         if "Banka/ATM" in edited_df.columns and "Nakit Ft Tutarı Topl" in edited_df.columns and "Nakit Ödeme Tutarı Topl" in edited_df.columns:
             edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl"] - edited_df["Banka/ATM"]
             
         st.session_state.hesap_df = edited_df
 
+        # 1. PERSONEL DURUM KARTLARI (Dinamik Renk Değişimi: İşaretlenince Yeşil Olur)
+        st.subheader("Personel Durum Kartları")
+        cols = st.columns(4)
+        for i, (_, row) in enumerate(edited_df.iterrows()):
+            p_name = row["Personel Adı"]
+            avatar_url = get_github_avatar(p_name)
+            islem_durumu = row["İşlem"] if "İşlem" in row else False
+            
+            # Kart stil ve renkleri İşlem durumuna göre ayarlanır
+            if islem_durumu:
+                card_class = "avatar-card-completed"
+                img_class = "avatar-img-completed"
+                hesap_class = "personel-hesap-completed"
+                status_badge = '<span style="color: #00FF66; font-size: 13px; font-weight: bold;">✔ İşlem Tamamlandı</span>'
+            else:
+                card_class = "avatar-card"
+                img_class = "avatar-img"
+                hesap_class = "personel-hesap"
+                status_badge = '<span style="color: #FFB703; font-size: 13px;">⏳ İşlem Bekliyor</span>'
+            
+            with cols[i % len(cols)]:
+                st.markdown(f"""
+                <div class="{card_class}">
+                    <img src="{avatar_url}" class="{img_class}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'85\\' height=\\'85\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
+                    <div class="personel-isim">{p_name}</div>
+                    <div class="{hesap_class}">Hesap: {row['Hesap']:,.2f} TL</div>
+                    <div style="margin-top: 5px;">{status_badge}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
         st.markdown("---")
-        
+
         st.session_state.kasa_miktari = st.number_input(
             "Toplam Kasa Miktarı (TL)", 
             value=float(st.session_state.kasa_miktari), 
