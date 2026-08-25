@@ -770,7 +770,19 @@ if st.session_state.active_tab == "HESAP":
         st.markdown("---")
         st.subheader("Personel Hesap Detay Tablosu (Banka/ATM Girişi & Düzenleme)")
         
-        st.info("💡 **Banka/ATM** sütununa personelin banka ya da ATM üzerinden yatırdığı tutarları yazabilirsiniz. **Hesap** tutarı otomatik olarak güncellenecektir.")
+        st.info("💡 **Banka/ATM** sütununa personelin banka ya da ATM üzerinden yatırdığı tutarları yazabilirsiniz. **Hesap** tutarı anlık olarak güncellenecektir.")
+
+        # Callback fonksiyonu: Banka/ATM değiştiğinde Hesap sütununu anında günceller
+        def update_hesap():
+            editor_state = st.session_state.get("account_data_editor", {})
+            if "edited_rows" in editor_state:
+                for row_idx, changes in editor_state["edited_rows"].items():
+                    if "Banka/ATM" in changes:
+                        new_banka = float(changes["Banka/ATM"])
+                        df_hesap.at[int(row_idx) + 1, "Banka/ATM"] = new_banka
+                
+                # Tüm tablo için Hesap sütununu yeniden hesapla
+                df_hesap["Hesap"] = df_hesap["Nakit Ft Tutarı Topl"] + df_hesap["Nakit Ödeme Tutarı Topl"] - df_hesap["Banka/ATM"]
 
         # Editör öncesi hesaplama garantisi
         df_hesap["Hesap"] = df_hesap["Nakit Ft Tutarı Topl"] + df_hesap["Nakit Ödeme Tutarı Topl"] - df_hesap["Banka/ATM"]
@@ -787,10 +799,11 @@ if st.session_state.active_tab == "HESAP":
             },
             hide_index=True,
             use_container_width=True,
+            on_change=update_hesap,
             key="account_data_editor"
         )
 
-        # Tablo verisi güncellendikten sonra Hesap sütununu kesin olarak yeniden hesaplama
+        # Tablo verisi güncellendikten sonra ek güvenlik garantisi
         edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl"] - edited_df["Banka/ATM"]
         st.session_state.hesap_df = edited_df
 
