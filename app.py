@@ -704,29 +704,16 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        st.subheader("Hesap Tablosu ve Düzenleme")
-        
-        # Tablo üzerinden interaktif düzenleme (İşlem sütunundaki onay kutuları dahil)
-        edited_df = st.data_editor(
-            df_hesap,
-            num_rows="dynamic",
-            use_container_width=True,
-            key="hesap_data_editor"
-        )
-        
-        # Tablodaki onay durumlarını session_state dataframe'ine senkronize et
-        st.session_state.hesap_df = edited_df
-
-        st.markdown("---")
+        # 1. ÖNCE PERSONEL DURUM KARTLARI (YUKARIDA)
         st.subheader("Personel Durum Kartları")
         cols = st.columns(4)
-        for i, (_, row) in enumerate(edited_df.iterrows()):
+        for i, (_, row) in enumerate(df_hesap.iterrows()):
             p_name = row["Personel Adı"]
             avatar_url = get_github_avatar(p_name)
             islem_durumu = row["İşlem"] if "İşlem" in row else False
             
-            # İşlem durumuna göre kart üstünde rozet gösterimi
-            status_badge = '<span style="color: #2A9D8F; font-size: 13px; font-weight: bold;">✔ İşlem Tamamlandı</span>' if islem_durumu else '<span style="color: #E76F51; font-size: 13px;">⏳ İşlem Bekliyor</span>'
+            # Canlı yeşil renkli işlem tamamlandı rozeti
+            status_badge = '<span style="color: #00FF66; font-size: 13px; font-weight: bold;">✔ İşlem Tamamlandı</span>' if islem_durumu else '<span style="color: #FFB703; font-size: 13px;">⏳ İşlem Bekliyor</span>'
             
             with cols[i % len(cols)]:
                 st.markdown(f"""
@@ -738,6 +725,20 @@ if st.session_state.active_tab == "HESAP":
                 </div>
                 """, unsafe_allow_html=True)
                 
+        st.markdown("---")
+        
+        # 2. SONRA TABLO VE DÜZENLEME ALANI
+        st.subheader("Hesap Tablosu ve Düzenleme")
+        
+        edited_df = st.data_editor(
+            df_hesap,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="hesap_data_editor"
+        )
+        
+        st.session_state.hesap_df = edited_df
+
         st.markdown("---")
         
         st.session_state.kasa_miktari = st.number_input(
