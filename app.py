@@ -436,6 +436,7 @@ def process_personnel_account_data(df):
 
     result_df = pd.DataFrame(final_rows)
     if not result_df.empty:
+        # Doğru Formül: Nakit Ft Tutarı Topl + Nakit Ödeme Tutarı Topl - Banka/ATM = Hesap
         result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
         result_df["İşlem"] = False
         result_df.reset_index(drop=True, inplace=True)
@@ -772,7 +773,7 @@ if st.session_state.active_tab == "HESAP":
         
         st.info("💡 **Banka/ATM** sütununa personelin banka ya da ATM üzerinden yatırdığı tutarları yazabilirsiniz. **Hesap** tutarı anlık olarak güncellenecektir.")
 
-        # Callback fonksiyonu: Banka/ATM değiştiğinde Hesap sütununu anında günceller
+        # Callback fonksiyonu: Banka/ATM değiştiğinde Hesap sütununu çıkarma mantığına göre anında günceller
         def update_hesap():
             editor_state = st.session_state.get("account_data_editor", {})
             if "edited_rows" in editor_state:
@@ -781,10 +782,10 @@ if st.session_state.active_tab == "HESAP":
                         new_banka = float(changes["Banka/ATM"])
                         df_hesap.at[int(row_idx) + 1, "Banka/ATM"] = new_banka
                 
-                # Tüm tablo için Hesap sütununu yeniden hesapla
+                # Tüm tablo için Hesap sütununu doğru formülle yeniden hesapla (Çıkarma İşlemi)
                 df_hesap["Hesap"] = df_hesap["Nakit Ft Tutarı Topl"] + df_hesap["Nakit Ödeme Tutarı Topl"] - df_hesap["Banka/ATM"]
 
-        # Editör öncesi hesaplama garantisi
+        # Editör öncesi hesaplama garantisi (Çıkarma İşlemi)
         df_hesap["Hesap"] = df_hesap["Nakit Ft Tutarı Topl"] + df_hesap["Nakit Ödeme Tutarı Topl"] - df_hesap["Banka/ATM"]
 
         edited_df = st.data_editor(
@@ -803,7 +804,7 @@ if st.session_state.active_tab == "HESAP":
             key="account_data_editor"
         )
 
-        # Tablo verisi güncellendikten sonra ek güvenlik garantisi
+        # Tablo verisi güncellendikten sonra ek güvenlik garantisi (Çıkarma İşlemi)
         edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl"] - edited_df["Banka/ATM"]
         st.session_state.hesap_df = edited_df
 
