@@ -46,17 +46,13 @@ def get_github_avatar(personel_adi):
     if not personel_adi:
         return ""
     
-    # Türkçe karakter dönüştürme ve temizleme (GitHub dosya adlarıyla tam uyum için)
     tr_map = {'İ': 'I', 'ı': 'i', 'Ş': 'S', 'ş': 's', 'Ğ': 'G', 'ğ': 'g', 'Ü': 'U', 'ü': 'u', 'Ö': 'O', 'ö': 'o', 'Ç': 'C', 'ç': 'c'}
     clean_name = str(personel_adi).strip()
     for k, v in tr_map.items():
         clean_name = clean_name.replace(k, v)
     clean_name = clean_name.upper()
     
-    # URL kodlama (Boşluklar ve özel karakterler için güvenli hale getirme)
     encoded_name = urllib.parse.quote(clean_name)
-    
-    # GitHub Raw URL (HESAPP deposu)
     return f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{encoded_name}.png"
 
 # ==========================================
@@ -459,7 +455,6 @@ def process_personnel_account_data(df):
 
     result_df = pd.DataFrame(final_rows)
     if not result_df.empty:
-        # Kesin Hesap Formülü: Nakit Ft + Nakit Ödeme - Banka/ATM
         result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
         result_df["İşlem"] = False
         result_df.reset_index(drop=True, inplace=True)
@@ -751,15 +746,12 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        # 1. PERSONEL DURUM KARTLARI (İşlem Tamam kutucukları kartların sağ üst köşesinde)
         st.subheader("Personel Durum Kartları")
         
-        # Tablodaki "İşlem" sütununu güncellemek için geçici bir dictionary hazırlığı
         if "İşlem" not in df_hesap.columns:
             df_hesap["İşlem"] = False
 
         cols = st.columns(4)
-        updated_islem_list = []
         
         for i, (idx_row, row) in enumerate(df_hesap.iterrows()):
             p_name = row["Personel Adı"]
@@ -767,7 +759,6 @@ if st.session_state.active_tab == "HESAP":
             current_islem = bool(row["İşlem"])
             
             with cols[i % len(cols)]:
-                # Kartın sağ üst köşesine konumlandırılmış Native Streamlit Checkbox
                 new_islem_val = st.checkbox(
                     "İşlem Tamam", 
                     value=current_islem, 
@@ -775,7 +766,6 @@ if st.session_state.active_tab == "HESAP":
                 )
                 df_hesap.at[idx_row, "İşlem"] = new_islem_val
                 
-                # Kart stil ve renkleri İşlem durumuna göre dinamik ayarlanır
                 if new_islem_val:
                     card_class = "avatar-card-completed"
                     img_class = "avatar-img-completed"
@@ -785,79 +775,138 @@ if st.session_state.active_tab == "HESAP":
                     card_class = "avatar-card"
                     img_class = "avatar-img"
                     hesap_class = "personel-hesap"
-                    status_badge = '<span style="color: #FFB703; font-size: 13px;">⏳ Bekliyor</span>'
-                
+                    status_badge = '<span style="color: #FF8500; font-size: 13px; font-weight: bold;">⏳ Bekliyor</span>'
+
                 st.markdown(f"""
                 <div class="{card_class}">
-                    <img src="{avatar_url}" class="{img_class}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'85\\' height=\\'85\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
+                    <img src="{avatar_url}" class="{img_class}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/DEFAULT.png';">
                     <div class="personel-isim">{p_name}</div>
-                    <div class="{hesap_class}">Hesap: {row['Hesap']:,.2f} TL</div>
-                    <div style="margin-top: 5px;">{status_badge}</div>
+                    <div class="{hesap_class}">{row['Hesap']:,.2f} TL</div>
+                    <div>{status_badge}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                
-        st.markdown("---")
-
-        # 2. HESAP TABLOSU VE DÜZENLEME (Banka/ATM girişleri)
-        st.subheader("Hesap Tablosu ve Düzenleme")
-        st.markdown('<div class="modern-table-container">', unsafe_allow_html=True)
         
-        # Kullanıcı arayüzde kafa karışıklığı olmaması için data_editor içinden "İşlem" sütunu gizlenip doğrudan kartlar üzerinden yönetilebilir kılınmıştır.
-        display_df = df_hesap.drop(columns=["İşlem"], errors="ignore")
+        st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+        st.subheader("Detaylı Hesap Tablosu ve Banka/ATM Girişi")
         
-        edited_display_df = st.data_editor(
-            display_df,
-            num_rows="dynamic",
+        st.info("💡 Aşağıdaki tablodan personellerin **Banka/ATM** kesintilerini düzenleyebilir ve **İşlem Tamam** durumlarını güncelleyebilirsiniz.")
+        
+        edited_df = st.data_editor(
+            df_hesap,
             use_container_width=True,
-            key="hesap_data_editor"
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Güncellenen verileri tekrar birleştirme
-        for idx in edited_display_df.index:
-            if idx in df_hesap.index:
-                df_hesap.at[idx, "Nakit Ft Tutarı Topl"] = edited_display_df.at[idx, "Nakit Ft Tutarı Topl"]
-                df_hesap.at[idx, "Nakit Ödeme Tutarı Topl"] = edited_display_df.at[idx, "Nakit Ödeme Tutarı Topl"]
-                df_hesap.at[idx, "Banka/ATM"] = edited_display_df.at[idx, "Banka/ATM"]
-
-        # Kesin Hesap Formülü: Nakit Ft + Nakit Ödeme - Banka/ATM
-        df_hesap["Hesap"] = df_hesap["Nakit Ft Tutarı Topl"] + df_hesap["Nakit Ödeme Tutarı Topl"] - df_hesap["Banka/ATM"]
-        st.session_state.hesap_df = df_hesap
-
-        st.session_state.kasa_miktari = st.number_input(
-            "Toplam Kasa Miktarı (TL)", 
-            value=float(st.session_state.kasa_miktari), 
-            format="%.2f"
+            num_rows="fixed",
+            column_config={
+                "Personel Adı": st.column_config.TextColumn("Personel Adı", disabled=True),
+                "Nakit Ft Tutarı Topl": st.column_config.NumberColumn("Nakit FT (TL)", format="%.2f", disabled=True),
+                "Nakit Ödeme Tutarı Topl": st.column_config.NumberColumn("Nakit Ödeme (TL)", format="%.2f", disabled=True),
+                "Banka/ATM": st.column_config.NumberColumn("Banka/ATM (TL)", format="%.2f", min_value=0.0, step=1.0),
+                "Hesap": st.column_config.NumberColumn("Hesap Tutar (TL)", format="%.2f", disabled=True),
+                "İşlem": st.column_config.CheckboxColumn("İşlem Tamam", help="İşlem tamamlandı mı?")
+            },
+            key="account_data_editor"
         )
         
-        total_hesap = df_hesap["Hesap"].sum() if "Hesap" in df_hesap.columns else 0.0
-        fark = st.session_state.kasa_miktari - total_hesap
+        # Canlı Hesap Güncellemesi (Nakit FT + Nakit Ödeme - Banka/ATM)
+        edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl"] - edited_df["Banka/ATM"]
+        st.session_state.hesap_df = edited_df
+
+        total_ft = edited_df["Nakit Ft Tutarı Topl"].sum()
+        total_odeme = edited_df["Nakit Ödeme Tutarı Topl"].sum()
+        total_banka = edited_df["Banka/ATM"].sum()
+        total_hesap = edited_df["Hesap"].sum()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+        col_m1.metric("Toplam Nakit FT", f"{total_ft:,.2f} TL")
+        col_m2.metric("Toplam Nakit Ödeme", f"{total_odeme:,.2f} TL")
+        col_m3.metric("Toplam Banka/ATM", f"{total_banka:,.2f} TL")
+        col_m4.metric("Net Toplam Hesap", f"{total_hesap:,.2f} TL", delta=f"{len(edited_df)} Personel")
+
+        st.markdown("<hr style='border: 1px solid rgba(255,255,255,0.1);'>", unsafe_allow_html=True)
+        st.subheader("💵 Kasa Kontrolü ve PDF Rapor İndirme")
+
+        col_k1, col_k2 = st.columns([1, 1])
+        with col_k1:
+            st.session_state.kasa_miktari = st.number_input(
+                "Kasada Sayılan Miktar (TL)",
+                min_value=0.0,
+                value=float(st.session_state.kasa_miktari),
+                step=50.0,
+                format="%.2f"
+            )
         
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Toplam Hesap", f"{total_hesap:,.2f} TL")
-        col2.metric("Kasa Miktarı", f"{st.session_state.kasa_miktari:,.2f} TL")
-        if fark > 0:
-            col3.metric("Kasa Durumu", f"AÇIK: {abs(fark):,.2f} TL", delta_color="inverse")
-        elif fark < 0:
-            col3.metric("Kasa Durumu", f"FAZLA: {abs(fark):,.2f} TL", delta_color="inverse")
-        else:
-            col3.metric("Kasa Durumu", "KASA TAM", delta_color="normal")
-            
-        pdf_bytes = generate_hesap_pdf(df_hesap, st.session_state.kasa_miktari)
+        with col_k2:
+            kasa = float(st.session_state.kasa_miktari)
+            fark = kasa - total_hesap
+            st.markdown("<br>", unsafe_allow_html=True)
+            if fark > 0:
+                st.error(f"⚠️ **KASA FAZLASI:** {abs(fark):,.2f} TL")
+            elif fark < 0:
+                st.warning(f"🚨 **KASA AÇIĞI:** {abs(fark):,.2f} TL")
+            else:
+                st.success("✅ **KASA TAM TAMINA UYUMLU!** (0.00 TL)")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        pdf_data = generate_hesap_pdf(edited_df, float(st.session_state.kasa_miktari))
         st.download_button(
-            label="📥 Hesap Özetini PDF Olarak İndir",
-            data=pdf_bytes,
-            file_name="Gunluk_Personel_Hesap_Raporu.pdf",
+            label="📄 Günlük Hesap Raporunu PDF Olarak İndir",
+            data=pdf_data,
+            file_name="Gorukle_Acente_Hesap_Raporu.pdf",
             mime="application/pdf"
         )
     else:
-        st.info("Lütfen sol panelden personel hesap verilerini içeren bir dosya yükleyin.")
+        st.info("👈 Lütfen sol panelden ilgili günlük personel hesap dosyasını (CSV, Excel veya HTML) yükleyin.")
 
+# ==========================================
+# F4 ÖDEME LİSTESİ TABI GÖSTERİMİ
+# ==========================================
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.title("📋 F4 Ödeme ve Tahsilat Listesi")
+    st.title("📋 F4 Ödeme Listesi ve Personel Dağılımı")
+    
     if st.session_state.f4_df is not None:
-        st.markdown('<div class="modern-table-container">', unsafe_allow_html=True)
-        st.dataframe(st.session_state.f4_df, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+        f4_df = st.session_state.f4_df
+        
+        st.info("💡 F4 borç listesindeki firmalar, tanımlı müşteri-personel haritasına göre ilgili şube personellerine otomatik olarak atanmıştır.")
+        
+        search_query = st.text_input("🔍 Müşteri veya Personel Adına Göre Ara", "")
+        if search_query:
+            filtered_f4 = f4_df[
+                f4_df["Müşteri Adı"].str.contains(search_query, case=False, na=False) |
+                f4_df["Personel"].str.contains(search_query, case=False, na=False)
+            ]
+        else:
+            filtered_f4 = f4_df
+
+        edited_f4 = st.data_editor(
+            filtered_f4,
+            use_container_width=True,
+            num_rows="dynamic",
+            column_config={
+                "Müşteri Adı": st.column_config.TextColumn("Müşteri / Firma Adı", disabled=True),
+                "Fatura Borcu": st.column_config.NumberColumn("Fatura Borcu (TL)", format="%.2f", disabled=True),
+                "Açıklama": st.column_config.TextColumn("Açıklama / Not"),
+                "Personel": st.column_config.SelectboxColumn(
+                    "İlgili Personel",
+                    options=["ATANMAMIŞ", "AHMET BERKAN ÖKSÜZ", "ALATTİN CEBECİ", "BURCU DÜREN", "CELAL ŞENOL", "HASAN SAĞLAM", "SERGEN GÖRÜROĞLU", "SUAT ARI"],
+                    required=True
+                )
+            },
+            key="f4_data_editor"
+        )
+        
+        total_borc = edited_f4["Fatura Borcu"].sum()
+        st.metric("F4 Toplam Borç Tutarı", f"{total_borc:,.2f} TL")
+        
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.subheader("👤 Personel Bazlı Toplam Alacak Dağılımı")
+        
+        personel_summary = edited_f4.groupby("Personel")["Fatura Borcu"].sum().reset_index()
+        personel_summary.columns = ["Personel", "Toplam Borç (TL)"]
+        
+        cols_sum = st.columns(3)
+        for idx, row in personel_summary.iterrows():
+            with cols_sum[idx % 3]:
+                st.metric(label=row["Personel"], value=f"{row['Toplam Borç (TL)']:,.2f} TL")
+                
     else:
-        st.info("Lütfen sol panelden F4 listesini içeren bir dosya yükleyin.")
+        st.info("👈 Lütfen sol panelden F4 borç listesi dosyasını yükleyin.")
