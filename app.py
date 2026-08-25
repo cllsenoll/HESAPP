@@ -38,7 +38,7 @@ KULLANICI_ISIM = "CELAL ŞENOL"
 KULLANICI_GOREV = "(Şube Şefi)"
 
 # ==========================================
-# GİTHUB PERSONEL FOTOĞRAF HARİTASI (GÜNCELLENDİ)
+# GİTHUB PERSONEL FOTOĞRAF HARİTASI
 # ==========================================
 def get_github_avatar(personel_adi):
     if not personel_adi:
@@ -151,7 +151,7 @@ MUSTERI_PERSONEL_MAP = {
 }
 
 # ==========================================
-# ÖZEL CSS VE TEMA STİLLERİ
+# ÖZEL CSS VE MAVİ-TURUNCU TEMA STİLLERİ
 # ==========================================
 custom_css = """
 <style>
@@ -176,9 +176,9 @@ custom_css = """
         height: 48px !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-        background: linear-gradient(135deg, #00B4D8 0%, #0077B6 100%) !important;
+        background: linear-gradient(135deg, #00B4D8 0%, #FF8500 100%) !important;
         color: #FFFFFF !important;
-        border: 1px solid #90E0EF !important;
+        border: 1px solid #FFB703 !important;
         box-shadow: 0 6px 0 #03045E, 0 8px 10px rgba(0, 0, 0, 0.4) !important;
         transform: translateY(0);
         transition: all 0.1s ease;
@@ -187,7 +187,7 @@ custom_css = """
         padding-left: 15px !important;
     }
     [data-testid="stSidebar"] div.stButton > button:hover, div.stButton > button:hover {
-        background: linear-gradient(135deg, #48CAE4 0%, #00B4D8 100%) !important;
+        background: linear-gradient(135deg, #48CAE4 0%, #FB8500 100%) !important;
         box-shadow: 0 4px 0 #03045E, 0 6px 8px rgba(0, 0, 0, 0.4) !important;
         transform: translateY(2px);
     }
@@ -213,23 +213,44 @@ custom_css = """
         box-shadow: 0 4px 0 #9E2A2B, 0 6px 8px rgba(0,0,0,0.3) !important;
     }
     
+    /* Mavi ve Turuncu Personel Kartı Tasarımı */
     .avatar-card {
-        background: #1E3E62;
-        border: 1px solid rgba(0, 180, 216, 0.3);
-        border-radius: 12px;
-        padding: 15px;
+        background: linear-gradient(145deg, #162B48 0%, #1E3E62 100%);
+        border: 2px solid #FF8500;
+        border-radius: 14px;
+        padding: 18px;
         text-align: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-        margin-bottom: 15px;
+        box-shadow: 0 6px 12px rgba(255, 133, 0, 0.15);
+        margin-bottom: 18px;
+        transition: transform 0.2s ease;
+    }
+    .avatar-card:hover {
+        transform: translateY(-3px);
+        border-color: #00B4D8;
+        box-shadow: 0 8px 16px rgba(0, 180, 216, 0.25);
     }
     .avatar-img {
-        width: 80px;
-        height: 80px;
+        width: 85px;
+        height: 85px;
         border-radius: 50%;
         object-fit: cover;
-        border: 2px solid #00B4D8;
-        margin-bottom: 8px;
+        border: 3px solid #00B4D8;
+        margin-bottom: 10px;
         background-color: #0B192C;
+    }
+    .personel-isim {
+        font-weight: 700;
+        font-size: 15px;
+        margin-bottom: 8px;
+        color: #FFFFFF;
+        letter-spacing: 0.5px;
+    }
+    /* Daha büyük hesap tutarı görünümü */
+    .personel-hesap {
+        color: #FFB703;
+        font-size: 19px;
+        font-weight: 800;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
 </style>
 """
@@ -766,7 +787,7 @@ with st.sidebar:
     st.markdown("""
     <div class="notranslate" style="text-align: center; padding-bottom: 10px;">
         <h2 style="margin: 0; color: #FFFFFF;">F4 / HESAP</h2>
-        <h4 style="margin: 0; color: #F57C00;">Görükle Acente</h4>
+        <h4 style="margin: 0; color: #FFB703;">Görükle Acente</h4>
     </div>
     """, unsafe_allow_html=True)
     
@@ -774,7 +795,7 @@ with st.sidebar:
     
     st.markdown(f"""
     <div class="notranslate" style="background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-        <small style="color: #F57C00;">Aktif Kullanıcı:</small><br>
+        <small style="color: #FFB703;">Aktif Kullanıcı:</small><br>
         <strong>{KULLANICI_ISIM}</strong> {KULLANICI_GOREV}
     </div>
     """, unsafe_allow_html=True)
@@ -814,7 +835,7 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        # Personel Kartları ve Resimleri Gösterme Alanı (Güvenli Fallback Mekanizmalı)
+        # Personel Kartları ve Resimleri Gösterme Alanı (Mavi-Turuncu Tema & Büyük Hesap Fontu)
         st.subheader("Personel Durum Kartları")
         cols = st.columns(4)
         for i, (_, row) in enumerate(df_hesap.iterrows()):
@@ -823,9 +844,9 @@ if st.session_state.active_tab == "HESAP":
             with cols[i % len(cols)]:
                 st.markdown(f"""
                 <div class="avatar-card">
-                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'80\\' height=\\'80\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
-                    <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px;">{p_name}</div>
-                    <div style="color: #00B4D8; font-size: 13px;">Hesap: {row['Hesap']:,.2f} TL</div>
+                    <img src="{avatar_url}" class="avatar-img" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'85\\' height=\\'85\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
+                    <div class="personel-isim">{p_name}</div>
+                    <div class="personel-hesap">Hesap: {row['Hesap']:,.2f} TL</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
