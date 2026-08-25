@@ -38,17 +38,26 @@ KULLANICI_GOREV = "(Şube Şefi)"
 # ==========================================
 # GİTHUB PERSONEL FOTOĞRAF HARİTASI
 # ==========================================
+GITHUB_USER = "cllsenoll"
+GITHUB_REPO = "F4-HESAP"
+GITHUB_BRANCH = "main"  # Deponuz master ise burayı 'master' yapın
+
 def get_github_avatar(personel_adi):
     if not personel_adi:
         return ""
+    
+    # Türkçe karakter dönüştürme ve temizleme
     tr_map = {'İ': 'I', 'ı': 'i', 'Ş': 'S', 'ş': 's', 'Ğ': 'G', 'ğ': 'g', 'Ü': 'U', 'ü': 'u', 'Ö': 'O', 'ö': 'o', 'Ç': 'C', 'ç': 'c'}
     clean_name = str(personel_adi).strip()
     for k, v in tr_map.items():
         clean_name = clean_name.replace(k, v)
     clean_name = clean_name.upper()
     
+    # URL kodlama (Boşluklar ve özel karakterler için güvenli hale getirme)
     encoded_name = urllib.parse.quote(clean_name)
-    return f"https://raw.githubusercontent.com/cllsenoll/F4-HESAP/main/{encoded_name}.png"
+    
+    # GitHub Raw URL (Uzantının .png olduğundan emin olun, büyük/küçük harfe dikkat edin)
+    return f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{encoded_name}.png"
 
 # ==========================================
 # MÜŞTERİ - PERSONEL EŞLEŞTİRME SÖZLÜĞÜ
@@ -704,7 +713,7 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        # 1. ÖNCE PERSONEL DURUM KARTLARI (YUKARIDA)
+        # 1. PERSONEL DURUM KARTLARI (YUKARIDA)
         st.subheader("Personel Durum Kartları")
         cols = st.columns(4)
         for i, (_, row) in enumerate(df_hesap.iterrows()):
@@ -727,7 +736,7 @@ if st.session_state.active_tab == "HESAP":
                 
         st.markdown("---")
         
-        # 2. SONRA TABLO VE DÜZENLEME ALANI
+        # 2. TABLO VE DÜZENLEME ALANI
         st.subheader("Hesap Tablosu ve Düzenleme")
         
         edited_df = st.data_editor(
