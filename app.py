@@ -46,7 +46,7 @@ def get_github_avatar(personel_adi):
     if not personel_adi:
         return ""
     
-    # Türkçe karakter dönüştürme ve temizleme
+    # Türkçe karakter dönüştürme ve temizleme (GitHub dosya adlarıyla tam uyum için)
     tr_map = {'İ': 'I', 'ı': 'i', 'Ş': 'S', 'ş': 's', 'Ğ': 'G', 'ğ': 'g', 'Ü': 'U', 'ü': 'u', 'Ö': 'O', 'ö': 'o', 'Ç': 'C', 'ç': 'c'}
     clean_name = str(personel_adi).strip()
     for k, v in tr_map.items():
@@ -56,7 +56,7 @@ def get_github_avatar(personel_adi):
     # URL kodlama (Boşluklar ve özel karakterler için güvenli hale getirme)
     encoded_name = urllib.parse.quote(clean_name)
     
-    # GitHub Raw URL (Uzantının .png olduğundan emin olun, büyük/küçük harfe dikkat edin)
+    # GitHub Raw URL
     return f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{encoded_name}.png"
 
 # ==========================================
@@ -259,6 +259,16 @@ custom_css = """
         margin-bottom: 6px;
         text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
+    
+    /* Modern Veri Tablosu Kapsayıcısı */
+    .modern-table-container {
+        background: #132238;
+        border: 1px solid #1E3E62;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        margin-bottom: 20px;
+    }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -422,6 +432,7 @@ def process_personnel_account_data(df):
 
     result_df = pd.DataFrame(final_rows)
     if not result_df.empty:
+        # Banka/ATM hesaptan düşülerek dinamik hesaplama sağlanır
         result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
         result_df["İşlem"] = False
         result_df.reset_index(drop=True, inplace=True)
@@ -721,7 +732,6 @@ if st.session_state.active_tab == "HESAP":
             avatar_url = get_github_avatar(p_name)
             islem_durumu = row["İşlem"] if "İşlem" in row else False
             
-            # Canlı yeşil renkli işlem tamamlandı rozeti
             status_badge = '<span style="color: #00FF66; font-size: 13px; font-weight: bold;">✔ İşlem Tamamlandı</span>' if islem_durumu else '<span style="color: #FFB703; font-size: 13px;">⏳ İşlem Bekliyor</span>'
             
             with cols[i % len(cols)]:
@@ -736,16 +746,22 @@ if st.session_state.active_tab == "HESAP":
                 
         st.markdown("---")
         
-        # 2. TABLO VE DÜZENLEME ALANI
+        # 2. MODERN TABLO VE DÜZENLEME ALANI
         st.subheader("Hesap Tablosu ve Düzenleme")
         
+        st.markdown('<div class="modern-table-container">', unsafe_allow_html=True)
         edited_df = st.data_editor(
             df_hesap,
             num_rows="dynamic",
             use_container_width=True,
             key="hesap_data_editor"
         )
+        st.markdown('</div>', unsafe_allow_html=True)
         
+        # Banka/ATM değişimine göre Hesabı anlık yeniden hesapla
+        if "Banka/ATM" in edited_df.columns and "Nakit Ft Tutarı Topl" in edited_df.columns and "Nakit Ödeme Tutarı Topl" in edited_df.columns:
+            edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl"] - edited_df["Banka/ATM"]
+            
         st.session_state.hesap_df = edited_df
 
         st.markdown("---")
@@ -782,6 +798,8 @@ if st.session_state.active_tab == "HESAP":
 elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
     st.title("📋 F4 Ödeme ve Tahsilat Listesi")
     if st.session_state.f4_df is not None:
+        st.markdown('<div class="modern-table-container">', unsafe_allow_html=True)
         st.dataframe(st.session_state.f4_df, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     else:
         st.info("Lütfen sol panelden F4 listesini içeren bir dosya yükleyin.")
