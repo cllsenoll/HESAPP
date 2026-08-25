@@ -46,17 +46,13 @@ def get_github_avatar(personel_adi):
     if not personel_adi:
         return ""
     
-    # Türkçe karakter dönüştürme ve temizleme (GitHub dosya adlarıyla tam uyum için)
     tr_map = {'İ': 'I', 'ı': 'i', 'Ş': 'S', 'ş': 's', 'Ğ': 'G', 'ğ': 'g', 'Ü': 'U', 'ü': 'u', 'Ö': 'O', 'ö': 'o', 'Ç': 'C', 'ç': 'c'}
     clean_name = str(personel_adi).strip()
     for k, v in tr_map.items():
         clean_name = clean_name.replace(k, v)
     clean_name = clean_name.upper()
     
-    # URL kodlama (Boşluklar ve özel karakterler için güvenli hale getirme)
     encoded_name = urllib.parse.quote(clean_name)
-    
-    # GitHub Raw URL (HESAPP deposu)
     return f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/{encoded_name}.png"
 
 # ==========================================
@@ -198,10 +194,6 @@ custom_css = """
         box-shadow: 0 4px 0 #03045E, 0 6px 8px rgba(0, 0, 0, 0.4) !important;
         transform: translateY(2px);
     }
-    [data-testid="stSidebar"] div.stButton > button:active, div.stButton > button:active {
-        box-shadow: 0 0 0 #03045E, 0 2px 4px rgba(0, 0, 0, 0.4) !important;
-        transform: translateY(6px);
-    }
 
     [data-testid="stFileUploader"] section {
         background: linear-gradient(135deg, #FFD166 0%, #FFB703) !important;
@@ -211,16 +203,7 @@ custom_css = """
     [data-testid="stFileUploader"] section * {
         color: #000000 !important;
     }
-    [data-testid="stFileUploader"] button {
-        background: linear-gradient(135deg, #FFB703 0%, #FB8500) !important;
-        color: #FFFFFF !important;
-        border: 1px solid #FFFFFF !important;
-        font-weight: bold !important;
-        border-radius: 8px !important;
-        box-shadow: 0 4px 0 #9E2A2B, 0 6px 8px rgba(0,0,0,0.3) !important;
-    }
     
-    /* Personel Kartı Tasarımları (Normal ve Tamamlanmış/Yeşil Durum) */
     .avatar-card {
         position: relative;
         background: linear-gradient(145deg, #162B48 0%, #1E3E62 100%);
@@ -242,10 +225,6 @@ custom_css = """
         box-shadow: 0 6px 12px rgba(0, 255, 102, 0.2);
         margin-bottom: 18px;
         transition: transform 0.2s ease;
-    }
-    .avatar-card:hover, .avatar-card-completed:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 8px 16px rgba(0, 180, 216, 0.25);
     }
     .avatar-img {
         width: 85px;
@@ -286,8 +265,6 @@ custom_css = """
         margin-bottom: 6px;
         text-shadow: 0 2px 4px rgba(0,0,0,0.3);
     }
-    
-    /* Modern Veri Tablosu Kapsayıcısı */
     .modern-table-container {
         background: #132238;
         border: 1px solid #1E3E62;
@@ -459,7 +436,7 @@ def process_personnel_account_data(df):
 
     result_df = pd.DataFrame(final_rows)
     if not result_df.empty:
-        # Kesin Hesap Formülü: Nakit Ft + Nakit Ödeme - Banka/ATM
+        # İstenen Hesap Mantığı Entegrasyonu: Nakit Ft + Nakit Ödeme - Banka/ATM
         result_df["Hesap"] = result_df["Nakit Ft Tutarı Topl"] + result_df["Nakit Ödeme Tutarı Topl"] - result_df["Banka/ATM"]
         result_df["İşlem"] = False
         result_df.reset_index(drop=True, inplace=True)
@@ -751,15 +728,12 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        # 1. PERSONEL DURUM KARTLARI (İşlem Tamam kutucukları kartların sağ üst köşesinde)
         st.subheader("Personel Durum Kartları")
         
-        # Tablodaki "İşlem" sütununu güncellemek için geçici bir dictionary hazırlığı
         if "İşlem" not in df_hesap.columns:
             df_hesap["İşlem"] = False
 
         cols = st.columns(4)
-        updated_islem_list = []
         
         for i, (idx_row, row) in enumerate(df_hesap.iterrows()):
             p_name = row["Personel Adı"]
@@ -767,7 +741,6 @@ if st.session_state.active_tab == "HESAP":
             current_islem = bool(row["İşlem"])
             
             with cols[i % len(cols)]:
-                # Kartın sağ üst köşesine konumlandırılmış Native Streamlit Checkbox
                 new_islem_val = st.checkbox(
                     "İşlem Tamam", 
                     value=current_islem, 
@@ -775,7 +748,6 @@ if st.session_state.active_tab == "HESAP":
                 )
                 df_hesap.at[idx_row, "İşlem"] = new_islem_val
                 
-                # Kart stil ve renkleri İşlem durumuna göre dinamik ayarlanır
                 if new_islem_val:
                     card_class = "avatar-card-completed"
                     img_class = "avatar-img-completed"
@@ -785,79 +757,80 @@ if st.session_state.active_tab == "HESAP":
                     card_class = "avatar-card"
                     img_class = "avatar-img"
                     hesap_class = "personel-hesap"
-                    status_badge = '<span style="color: #FFB703; font-size: 13px;">⏳ Bekliyor</span>'
-                
+                    status_badge = '<span style="color: #FF8500; font-size: 13px; font-weight: bold;">⏳ Bekliyor</span>'
+
                 st.markdown(f"""
                 <div class="{card_class}">
-                    <img src="{avatar_url}" class="{img_class}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'85\\' height=\\'85\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
+                    <img src="{avatar_url}" class="{img_class}" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/DEFAULT.png';">
                     <div class="personel-isim">{p_name}</div>
-                    <div class="{hesap_class}">Hesap: {row['Hesap']:,.2f} TL</div>
-                    <div style="margin-top: 5px;">{status_badge}</div>
+                    <div class="{hesap_class}">{row['Hesap']:,.2f} TL</div>
+                    <div>{status_badge}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                
+
         st.markdown("---")
+        st.subheader("Personel Hesap Detay Tablosu (Banka/ATM Girişi & Düzenleme)")
+        
+        st.info("💡 **Banka/ATM** sütununa personelin banka ya da ATM üzerinden yatırdığı tutarları yazabilirsiniz. **Hesap** tutarı otomatik olarak güncellenecektir.")
 
-        # 2. HESAP TABLOSU VE DÜZENLEME (Banka/ATM girişleri)
-        st.subheader("Hesap Tablosu ve Düzenleme")
-        st.markdown('<div class="modern-table-container">', unsafe_allow_html=True)
-        
-        # Kullanıcı arayüzde kafa karışıklığı olmaması için data_editor içinden "İşlem" sütunu gizlenip doğrudan kartlar üzerinden yönetilebilir kılınmıştır.
-        display_df = df_hesap.drop(columns=["İşlem"], errors="ignore")
-        
-        edited_display_df = st.data_editor(
-            display_df,
-            num_rows="dynamic",
+        edited_df = st.data_editor(
+            df_hesap,
+            column_config={
+                "Personel Adı": st.column_config.TextColumn("Personel Adı", disabled=True),
+                "Nakit Ft Tutarı Topl": st.column_config.NumberColumn("Nakit Ft Tutarı Topl", format="%.2f TL", disabled=True),
+                "Nakit Ödeme Tutarı Topl": st.column_config.NumberColumn("Nakit Ödeme Tutarı Topl", format="%.2f TL", disabled=True),
+                "Banka/ATM": st.column_config.NumberColumn("Banka/ATM (Düzenlenebilir)", format="%.2f TL", min_value=0.0, step=1.0),
+                "Hesap": st.column_config.NumberColumn("Hesap (Otomatik)", format="%.2f TL", disabled=True),
+                "İşlem": st.column_config.CheckboxColumn("İşlem Tamam", default=False)
+            },
+            hide_index=True,
             use_container_width=True,
-            key="hesap_data_editor"
+            key="account_data_editor"
         )
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Güncellenen verileri tekrar birleştirme
-        for idx in edited_display_df.index:
-            if idx in df_hesap.index:
-                df_hesap.at[idx, "Nakit Ft Tutarı Topl"] = edited_display_df.at[idx, "Nakit Ft Tutarı Topl"]
-                df_hesap.at[idx, "Nakit Ödeme Tutarı Topl"] = edited_display_df.at[idx, "Nakit Ödeme Tutarı Topl"]
-                df_hesap.at[idx, "Banka/ATM"] = edited_display_df.at[idx, "Banka/ATM"]
 
-        # Kesin Hesap Formülü: Nakit Ft + Nakit Ödeme - Banka/ATM
-        df_hesap["Hesap"] = df_hesap["Nakit Ft Tutarı Topl"] + df_hesap["Nakit Ödeme Tutarı Topl"] - df_hesap["Banka/ATM"]
-        st.session_state.hesap_df = df_hesap
+        # Tablo üzerinde Banka/ATM değiştiğinde Hesap sütununu anlık yeniden hesaplama
+        edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl"] - edited_df["Banka/ATM"]
+        st.session_state.hesap_df = edited_df
 
-        st.session_state.kasa_miktari = st.number_input(
-            "Toplam Kasa Miktarı (TL)", 
-            value=float(st.session_state.kasa_miktari), 
-            format="%.2f"
-        )
+        st.markdown("---")
+        st.subheader("Kasa Kontrol ve Raporlama")
         
-        total_hesap = df_hesap["Hesap"].sum() if "Hesap" in df_hesap.columns else 0.0
-        fark = st.session_state.kasa_miktari - total_hesap
-        
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Toplam Hesap", f"{total_hesap:,.2f} TL")
-        col2.metric("Kasa Miktarı", f"{st.session_state.kasa_miktari:,.2f} TL")
-        if fark > 0:
-            col3.metric("Kasa Durumu", f"AÇIK: {abs(fark):,.2f} TL", delta_color="inverse")
-        elif fark < 0:
-            col3.metric("Kasa Durumu", f"FAZLA: {abs(fark):,.2f} TL", delta_color="inverse")
-        else:
-            col3.metric("Kasa Durumu", "KASA TAM", delta_color="normal")
+        col_kasa1, col_kasa2 = st.columns([1, 1])
+        with col_kasa1:
+            st.session_state.kasa_miktari = st.number_input(
+                "Fiziki Kasa Miktarı (TL)", 
+                min_value=0.0, 
+                value=float(st.session_state.kasa_miktari), 
+                step=10.0,
+                format="%.2f"
+            )
             
-        pdf_bytes = generate_hesap_pdf(df_hesap, st.session_state.kasa_miktari)
+        toplam_hesap_tutar = edited_df["Hesap"].sum()
+        kasa_farki = float(st.session_state.kasa_miktari) - toplam_hesap_tutar
+
+        with col_kasa2:
+            st.markdown(f"""
+            <div class="modern-table-container">
+                <h4 style="margin-top:0; color: #00B4D8;">Özet Bilgiler</h4>
+                <p><b>Toplam Hesap:</b> {toplam_hesap_tutar:,.2f} TL</p>
+                <p><b>Girilen Kasa:</b> {float(st.session_state.kasa_miktari):,.2f} TL</p>
+            """, unsafe_allow_html=True)
+            
+            if kasa_farki > 0:
+                st.markdown(f'<p style="color: #00FF66; font-weight: bold; font-size: 16px;">Kasa Fazlası: {abs(kasa_farki):,.2f} TL</p>', unsafe_allow_html=True)
+            elif kasa_farki < 0:
+                st.markdown(f'<p style="color: #FF4B4B; font-weight: bold; font-size: 16px;">Kasa Açığı: {abs(kasa_farki):,.2f} TL</p>', unsafe_allow_html=True)
+            else:
+                st.markdown('<p style="color: #00FF66; font-weight: bold; font-size: 16px;">Kasa Tam Matrah (0.00 TL)</p>', unsafe_allow_html=True)
+                
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        pdf_bytes = generate_hesap_pdf(edited_df, st.session_state.kasa_miktari)
         st.download_button(
-            label="📥 Hesap Özetini PDF Olarak İndir",
+            label="📄 Günlük Hesap Özetini PDF İndir",
             data=pdf_bytes,
-            file_name="Gunluk_Personel_Hesap_Raporu.pdf",
+            file_name="Gorusle_Acente_Gunluk_Hesap_Raporu.pdf",
             mime="application/pdf"
         )
     else:
-        st.info("Lütfen sol panelden personel hesap verilerini içeren bir dosya yükleyin.")
-
-elif st.session_state.active_tab == "F4 ÖDEME LİSTESİ":
-    st.title("📋 F4 Ödeme ve Tahsilat Listesi")
-    if st.session_state.f4_df is not None:
-        st.markdown('<div class="modern-table-container">', unsafe_allow_html=True)
-        st.dataframe(st.session_state.f4_df, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    else:
-        st.info("Lütfen sol panelden F4 listesini içeren bir dosya yükleyin.")
+        st.info("👈 Lütfen sol menüden ilgili rapor/liste dosyasını yükleyin.")
