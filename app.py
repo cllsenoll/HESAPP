@@ -222,6 +222,7 @@ custom_css = """
     
     /* Personel Kartı Tasarımları (Normal ve Tamamlanmış/Yeşil Durum) */
     .avatar-card {
+        position: relative;
         background: linear-gradient(145deg, #162B48 0%, #1E3E62 100%);
         border: 2px solid #FF8500;
         border-radius: 14px;
@@ -232,6 +233,7 @@ custom_css = """
         transition: transform 0.2s ease;
     }
     .avatar-card-completed {
+        position: relative;
         background: linear-gradient(145deg, #133824 0%, #1B4D33 100%);
         border: 2px solid #00FF66;
         border-radius: 14px;
@@ -749,44 +751,42 @@ if st.session_state.active_tab == "HESAP":
     if st.session_state.hesap_df is not None:
         df_hesap = st.session_state.hesap_df
         
-        # Önce veri düzenleme bileşeni çalıştırılır ki "İşlem" durumları anlık alınabilsin
-        st.subheader("Hesap Tablosu ve Düzenleme")
-        st.markdown('<div class="modern-table-container">', unsafe_allow_html=True)
-        edited_df = st.data_editor(
-            df_hesap,
-            num_rows="dynamic",
-            use_container_width=True,
-            key="hesap_data_editor"
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Banka/ATM ve formül güncellemesi: Hesap = Nakit Ft + Nakit Ödeme - Banka/ATM
-        if "Banka/ATM" in edited_df.columns and "Nakit Ft Tutarı Topl" in edited_df.columns and "Nakit Ödeme Tutarı Topl" in edited_df.columns:
-            edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl"] - edited_df["Banka/ATM"]
-            
-        st.session_state.hesap_df = edited_df
-
-        # 1. PERSONEL DURUM KARTLARI (Dinamik Renk Değişimi: İşaretlenince Yeşil Olur)
+        # 1. PERSONEL DURUM KARTLARI (İşlem Tamam kutucukları kartların sağ üst köşesinde)
         st.subheader("Personel Durum Kartları")
+        
+        # Tablodaki "İşlem" sütununu güncellemek için geçici bir dictionary hazırlığı
+        if "İşlem" not in df_hesap.columns:
+            df_hesap["İşlem"] = False
+
         cols = st.columns(4)
-        for i, (_, row) in enumerate(edited_df.iterrows()):
+        updated_islem_list = []
+        
+        for i, (idx_row, row) in enumerate(df_hesap.iterrows()):
             p_name = row["Personel Adı"]
             avatar_url = get_github_avatar(p_name)
-            islem_durumu = row["İşlem"] if "İşlem" in row else False
-            
-            # Kart stil ve renkleri İşlem durumuna göre ayarlanır
-            if islem_durumu:
-                card_class = "avatar-card-completed"
-                img_class = "avatar-img-completed"
-                hesap_class = "personel-hesap-completed"
-                status_badge = '<span style="color: #00FF66; font-size: 13px; font-weight: bold;">✔ İşlem Tamamlandı</span>'
-            else:
-                card_class = "avatar-card"
-                img_class = "avatar-img"
-                hesap_class = "personel-hesap"
-                status_badge = '<span style="color: #FFB703; font-size: 13px;">⏳ İşlem Bekliyor</span>'
+            current_islem = bool(row["İşlem"])
             
             with cols[i % len(cols)]:
+                # Kartın sağ üst köşesine konumlandırılmış Native Streamlit Checkbox
+                new_islem_val = st.checkbox(
+                    "İşlem Tamam", 
+                    value=current_islem, 
+                    key=f"chk_card_{idx_row}_{p_name}"
+                )
+                df_hesap.at[idx_row, "İşlem"] = new_islem_val
+                
+                # Kart stil ve renkleri İşlem durumuna göre dinamik ayarlanır
+                if new_islem_val:
+                    card_class = "avatar-card-completed"
+                    img_class = "avatar-img-completed"
+                    hesap_class = "personel-hesap-completed"
+                    status_badge = '<span style="color: #00FF66; font-size: 13px; font-weight: bold;">✔ Tamamlandı</span>'
+                else:
+                    card_class = "avatar-card"
+                    img_class = "avatar-img"
+                    hesap_class = "personel-hesap"
+                    status_badge = '<span style="color: #FFB703; font-size: 13px;">⏳ Bekliyor</span>'
+                
                 st.markdown(f"""
                 <div class="{card_class}">
                     <img src="{avatar_url}" class="{img_class}" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'85\\' height=\\'85\\' viewBox=\\'0 0 24 24\\'><path fill=\\'%2300b4d8\\' d=\\'M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 3a3 3 0 1 1-3 3a3 3 0 0 1 3-3zm0 14.2a7.2 7.2 0 0 1-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.2 7.2 0 0 1-6 3.2z\\'/></svg>';">
@@ -798,13 +798,39 @@ if st.session_state.active_tab == "HESAP":
                 
         st.markdown("---")
 
+        # 2. HESAP TABLOSU VE DÜZENLEME (Banka/ATM girişleri)
+        st.subheader("Hesap Tablosu ve Düzenleme")
+        st.markdown('<div class="modern-table-container">', unsafe_allow_html=True)
+        
+        # Kullanıcı arayüzde kafa karışıklığı olmaması için data_editor içinden "İşlem" sütunu gizlenip doğrudan kartlar üzerinden yönetilebilir kılınmıştır.
+        display_df = df_hesap.drop(columns=["İşlem"], errors="ignore")
+        
+        edited_display_df = st.data_editor(
+            display_df,
+            num_rows="dynamic",
+            use_container_width=True,
+            key="hesap_data_editor"
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Güncellenen verileri tekrar birleştirme
+        for idx in edited_display_df.index:
+            if idx in df_hesap.index:
+                df_hesap.at[idx, "Nakit Ft Tutarı Topl"] = edited_display_df.at[idx, "Nakit Ft Tutarı Topl"]
+                df_hesap.at[idx, "Nakit Ödeme Tutarı Topl"] = edited_display_df.at[idx, "Nakit Ödeme Tutarı Topl"]
+                df_hesap.at[idx, "Banka/ATM"] = edited_display_df.at[idx, "Banka/ATM"]
+
+        # Kesin Hesap Formülü: Nakit Ft + Nakit Ödeme - Banka/ATM
+        df_hesap["Hesap"] = df_hesap["Nakit Ft Tutarı Topl"] + df_hesap["Nakit Ödeme Tutarı Topl"] - df_hesap["Banka/ATM"]
+        st.session_state.hesap_df = df_hesap
+
         st.session_state.kasa_miktari = st.number_input(
             "Toplam Kasa Miktarı (TL)", 
             value=float(st.session_state.kasa_miktari), 
             format="%.2f"
         )
         
-        total_hesap = edited_df["Hesap"].sum() if "Hesap" in edited_df.columns else 0.0
+        total_hesap = df_hesap["Hesap"].sum() if "Hesap" in df_hesap.columns else 0.0
         fark = st.session_state.kasa_miktari - total_hesap
         
         col1, col2, col3 = st.columns(3)
@@ -817,7 +843,7 @@ if st.session_state.active_tab == "HESAP":
         else:
             col3.metric("Kasa Durumu", "KASA TAM", delta_color="normal")
             
-        pdf_bytes = generate_hesap_pdf(edited_df, st.session_state.kasa_miktari)
+        pdf_bytes = generate_hesap_pdf(df_hesap, st.session_state.kasa_miktari)
         st.download_button(
             label="📥 Hesap Özetini PDF Olarak İndir",
             data=pdf_bytes,
