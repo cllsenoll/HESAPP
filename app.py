@@ -788,8 +788,8 @@ if st.session_state.active_tab == "HESAP":
             key="account_data_editor"
         )
 
-        # Tablo üzerinde Banka/ATM değiştiğinde Hesap sütununu anlık yeniden hesaplama (Banka/ATM çıkarma işlemi güvenceye alındı)
-        edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl'] - edited_df["Banka/ATM"]
+        # Tablo üzerinde Banka/ATM değiştiğinde Hesap sütununu anlık yeniden hesaplama
+        edited_df["Hesap"] = edited_df["Nakit Ft Tutarı Topl"] + edited_df["Nakit Ödeme Tutarı Topl"] - edited_df["Banka/ATM"]
         st.session_state.hesap_df = edited_df
 
         st.markdown("---")
